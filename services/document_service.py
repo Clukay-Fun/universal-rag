@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import datetime
 from pathlib import Path
@@ -38,6 +39,74 @@ def convert_to_markdown(file_path: str) -> tuple[str, str | None]:
     converter = MarkItDown()
     result = converter.convert(file_path)
     return result.markdown, result.title
+# endregion
+# ============================================
+
+
+# ============================================
+# region _extract_json_text
+# ============================================
+def _extract_json_text(text: str) -> str:
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        stripped = stripped.strip("`")
+        lines = stripped.splitlines()
+        if lines and lines[0].lower().startswith("json"):
+            stripped = "\n".join(lines[1:])
+    return stripped.strip()
+# endregion
+# ============================================
+
+
+# ============================================
+# region _build_nodes_from_structure
+# ============================================
+def _build_nodes_from_structure(payload: dict[str, object]) -> list[DocumentNode] | None:
+    nodes_value = payload.get("nodes")
+    if not isinstance(nodes_value, list) or not nodes_value:
+        return None
+
+    nodes: list[DocumentNode] = []
+    for index, item in enumerate(nodes_value, start=1):
+        if not isinstance(item, dict):
+            continue
+        node_id_value = item.get("node_id")
+        try:
+            node_id = int(node_id_value) if node_id_value is not None else index
+        except (TypeError, ValueError):
+            node_id = index
+
+        parent_id = item.get("parent_id")
+        if parent_id in ("", "null"):
+            parent_id = None
+        if parent_id is not None:
+            try:
+                parent_id = int(parent_id)
+            except (TypeError, ValueError):
+                parent_id = None
+
+        level_value = item.get("level")
+        try:
+            level = int(level_value) if level_value is not None else 1
+        except (TypeError, ValueError):
+            level = 1
+
+        title = item.get("title")
+        title = str(title) if title is not None else "Section"
+        content = item.get("content")
+        content = str(content) if content is not None else ""
+
+        nodes.append(
+            DocumentNode(
+                node_id=node_id,
+                parent_id=parent_id,
+                level=level,
+                title=title,
+                content=content,
+            )
+        )
+
+    return nodes or None
 # endregion
 # ============================================
 
@@ -241,6 +310,12 @@ def parse_document(
             ]
             response = structure_document(markdown, node_payload)
             structure_result = response.content
+            if structure_result:
+                json_text = _extract_json_text(structure_result)
+                payload = json.loads(json_text)
+                structured_nodes = _build_nodes_from_structure(payload)
+                if structured_nodes:
+                    nodes = structured_nodes
         except Exception as exc:
             structure_error = str(exc)
 

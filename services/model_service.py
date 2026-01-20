@@ -67,19 +67,33 @@ def extract_json(prompt: str) -> ModelResponse:
 def structure_document(markdown: str, nodes: list[dict[str, Any]] | None = None) -> ModelResponse:
     settings = get_settings().model
     client = _get_client()
+    schema_hint = (
+        "Output JSON only. Schema:\n"
+        "{\"nodes\": ["
+        "{\"node_id\": 1, \"parent_id\": null, \"level\": 1, "
+        "\"title\": \"...\", \"content\": \"...\"}"
+        "]}.\n"
+        "Rules:\n"
+        "- node_id is a 1-based integer sequence.\n"
+        "- parent_id references node_id or null.\n"
+        "- level is heading depth (1-6).\n"
+        "- content holds the paragraph text.\n"
+        "- Return valid JSON, no markdown or code fences."
+    )
+
     if nodes:
         node_payload = json.dumps(nodes, ensure_ascii=False)
         user_content = (
+            f"{schema_hint}\n\n"
             "Markdown:\n"
             f"{markdown}\n\n"
             "Nodes:\n"
-            f"{node_payload}\n\n"
-            "Return structured JSON based on markdown and nodes."
+            f"{node_payload}"
         )
     else:
-        user_content = markdown
+        user_content = f"{schema_hint}\n\nMarkdown:\n{markdown}"
     messages = [
-        {"role": "system", "content": "Extract structured sections from markdown."},
+        {"role": "system", "content": "You are a document structuring assistant."},
         {"role": "user", "content": user_content},
     ]
     return client.chat_completion(settings.doc_structure_model, messages)
