@@ -90,6 +90,27 @@ python -m cli.main match-run --req-file tender.txt --top-k 5
 - `--req-file` 招标需求文本
 - `--top-k` 返回数量
 
+### 企业/业绩/律师
+```
+python -m cli.main enterprise insert --credit-code CODE --company-name NAME
+python -m cli.main enterprise get --credit-code CODE
+python -m cli.main enterprise delete --credit-code CODE
+python -m cli.main enterprise import --file enterprises.json
+python -m cli.main enterprise export --out enterprises_export.json
+
+python -m cli.main performance insert --id 1001 --amount 5
+python -m cli.main performance get --id 1001
+python -m cli.main performance delete --id 1001
+python -m cli.main performance import --file performances.json
+python -m cli.main performance export --out performances_export.json
+
+python -m cli.main lawyer insert --id 1 --name "张三"
+python -m cli.main lawyer get --id 1
+python -m cli.main lawyer delete --id 1
+python -m cli.main lawyer import --file lawyers.json
+python -m cli.main lawyer export --out lawyers_export.json
+```
+
 ### Agent 运行
 ```
 python -m cli.main agent-run --task "解析文档并问答" --max-steps 10 --timeout 120

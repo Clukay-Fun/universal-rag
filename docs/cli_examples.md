@@ -22,6 +22,15 @@ python -m cli.main --db-url postgresql://postgres:1234@localhost:5432/universal-
   --json
 ```
 
+删除
+```
+python -m cli.main --db-url postgresql://postgres:1234@localhost:5432/universal-rag \
+  enterprise delete \
+  --credit-code 91320101MA1XXXXXXX \
+  --yes \
+  --json
+```
+
 ## 业绩/合同
 
 插入
@@ -48,4 +57,74 @@ python -m cli.main --db-url postgresql://postgres:1234@localhost:5432/universal-
   performance get \
   --id 1001 \
   --json
+```
+
+删除
+```
+python -m cli.main --db-url postgresql://postgres:1234@localhost:5432/universal-rag \
+  performance delete \
+  --id 1001 \
+  --yes \
+  --json
+```
+
+## 律师信息
+
+插入
+```
+python -m cli.main --db-url postgresql://postgres:1234@localhost:5432/universal-rag \
+  lawyer insert \
+  --id 501 \
+  --name "张三" \
+  --id-card 320101199001011234 \
+  --license-no "A-2024-001" \
+  --resume "示例简历" \
+  --resume-embedding "0.1,0.2,0.3" \
+  --json
+```
+
+查询
+```
+python -m cli.main --db-url postgresql://postgres:1234@localhost:5432/universal-rag \
+  lawyer get \
+  --id 501 \
+  --json
+```
+
+删除
+```
+python -m cli.main --db-url postgresql://postgres:1234@localhost:5432/universal-rag \
+  lawyer delete \
+  --id 501 \
+  --yes \
+  --json
+```
+
+## 批量导入/导出
+
+企业
+```
+python -m cli.main --db-url postgresql://postgres:1234@localhost:5432/universal-rag \
+  enterprise import --file enterprises.json
+
+python -m cli.main --db-url postgresql://postgres:1234@localhost:5432/universal-rag \
+  enterprise export --out enterprises_export.json
+```
+
+业绩
+```
+python -m cli.main --db-url postgresql://postgres:1234@localhost:5432/universal-rag \
+  performance import --file performances.json
+
+python -m cli.main --db-url postgresql://postgres:1234@localhost:5432/universal-rag \
+  performance export --out performances_export.json
+```
+
+律师
+```
+python -m cli.main --db-url postgresql://postgres:1234@localhost:5432/universal-rag \
+  lawyer import --file lawyers.json
+
+python -m cli.main --db-url postgresql://postgres:1234@localhost:5432/universal-rag \
+  lawyer export --out lawyers_export.json
 ```
