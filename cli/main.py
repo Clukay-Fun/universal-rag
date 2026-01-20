@@ -1,0 +1,48 @@
+"""
+描述: CLI 入口
+主要功能:
+    - 注册 Typer 子命令
+    - 统一数据库连接参数
+依赖: typer
+"""
+
+from __future__ import annotations
+
+import os
+
+import typer
+
+from cli.commands.enterprise import app as enterprise_app
+from cli.commands.performance import app as performance_app
+
+app = typer.Typer(help="Universal RAG CLI")
+app.add_typer(enterprise_app, name="enterprise")
+app.add_typer(performance_app, name="performance")
+
+
+@app.callback()
+def main(
+    ctx: typer.Context,
+    db_url: str = typer.Option(
+        os.getenv("DATABASE_URL", ""),
+        "--db-url",
+        help="PostgreSQL 连接串",
+    ),
+) -> None:
+    """
+    CLI 全局入口
+
+    参数:
+        ctx: Typer 上下文
+        db_url: 数据库连接串
+    返回:
+        None
+    """
+
+    if not db_url:
+        raise typer.BadParameter("DATABASE_URL or --db-url is required")
+    ctx.obj = {"db_url": db_url}
+
+
+if __name__ == "__main__":
+    app()

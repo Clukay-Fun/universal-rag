@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+typer
+psycopg[binary]
+python-dotenv
+pydantic
+python-docx
+pgvector
+llama-index
+# markitdown  # package name to verify
+# sse-starlette

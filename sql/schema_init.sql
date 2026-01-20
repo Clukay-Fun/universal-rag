@@ -1,0 +1,56 @@
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE enterprises (
+    credit_code VARCHAR(18) NOT NULL,
+    company_name VARCHAR(255),
+    business_scope TEXT,
+    industry VARCHAR(100),
+    enterprise_type VARCHAR(50),
+    created_at TIMESTAMP WITHOUT TIME ZONE,
+    updated_at TIMESTAMP WITHOUT TIME ZONE,
+    CONSTRAINT enterprises_pkey PRIMARY KEY (credit_code)
+);
+
+CREATE TABLE lawyers (
+    id INTEGER,
+    name VARCHAR(50),
+    id_card VARCHAR(18),
+    license_no VARCHAR(50),
+    resume TEXT,
+    resume_embedding VECTOR(1024),
+    id_card_image VARCHAR(255),
+    degree_image VARCHAR(255),
+    diploma_image VARCHAR(255),
+    license_image VARCHAR(255),
+    created_at TIMESTAMP WITHOUT TIME ZONE,
+    updated_at TIMESTAMP WITHOUT TIME ZONE
+);
+
+CREATE TABLE performances (
+    id INTEGER NOT NULL,
+    file_name VARCHAR(255),
+    party_a VARCHAR(255),
+    party_a_id VARCHAR(50),
+    contract_number INTEGER,
+    amount DECIMAL(12, 2) NOT NULL,
+    fee_method TEXT,
+    sign_date_norm DATE,
+    sign_date_raw TEXT,
+    project_type VARCHAR(50),
+    project_detail TEXT,
+    subject_amount DECIMAL(12, 2),
+    opponent VARCHAR(255),
+    team_member TEXT,
+    summary TEXT,
+    image_data BYTEA,
+    image_count INTEGER,
+    raw_text TEXT,
+    created_at TIMESTAMP WITHOUT TIME ZONE,
+    updated_at TIMESTAMP WITHOUT TIME ZONE,
+    embedding VECTOR(1024),
+    CONSTRAINT performances_pkey PRIMARY KEY (id),
+    CONSTRAINT performances_amount_nonnegative CHECK (amount >= 0),
+    CONSTRAINT performances_subject_amount_nonnegative CHECK (
+        subject_amount IS NULL OR subject_amount >= 0
+    )
+);
