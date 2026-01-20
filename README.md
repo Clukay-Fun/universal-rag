@@ -23,6 +23,11 @@ pip install -r requirements.txt
 psql "${DATABASE_URL}" -f sql/schema_init.sql
 ```
 
+如需文档结构化入库，再执行：
+```bash
+psql "${DATABASE_URL}" -f sql/schema_documents.sql
+```
+
 4) 启动 FastAPI
 ```bash
 uvicorn api.main:app --host 0.0.0.0 --port 8001 --reload
@@ -52,6 +57,7 @@ AGENTS.md            Agent 协作规范
 ## 文档与脚本
 - SQL 初始化与约束：`sql/schema_init.sql`、`sql/schema_constraints.sql`
 - 迁移记录：`sql/schema_migration.sql`
+- 文档表结构：`sql/schema_documents.sql`
 - 索引策略：`sql/schema_indexes.sql`
 - API 示例：`docs/examples_api.md`
 - CLI 草案：`docs/cli_typer.md`
