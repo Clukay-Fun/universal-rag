@@ -27,13 +27,6 @@
 - 对话模型：internlm/internlm2_5-7b-chat
 - Web 框架：FastAPI
 
-## Build / Lint / Test / Format / Dev（占位符 + 待补充）
-- Build:    <build-command>  # 待补充
-- Lint:     <lint-command>   # 待补充
-- Test:     <test-command>   # 待补充
-- Format:   <format-command> # 待补充
-- Dev:      <dev-command>    # 待补充
-
 ## 环境变量与密钥管理
 - 必填：`DATABASE_URL`（PostgreSQL 连接串）
 - 服务：`FASTAPI_HOST`、`FASTAPI_PORT`
