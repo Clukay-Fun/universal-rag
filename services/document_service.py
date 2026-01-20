@@ -17,6 +17,7 @@ from markitdown import MarkItDown
 from psycopg import Connection
 
 from schemas.document import DocumentNode, DocumentParseResponse, DocumentParseStats
+from services.model_service import structure_document
 
 HEADING_PATTERN = re.compile(r"^(#{1,6})\s+(.*)$")
 
@@ -203,6 +204,7 @@ def parse_document(
     file_name: str | None,
     include_markdown: bool,
     persist: bool,
+    use_model_structure: bool = True,
     conn: Connection | None = None,
 ) -> DocumentParseResponse:
     """
@@ -213,6 +215,7 @@ def parse_document(
         file_name: 文件名
         include_markdown: 是否返回 Markdown
         persist: 是否持久化
+        use_model_structure: 是否调用模型结构化
         conn: 数据库连接
     返回:
         文档解析响应
@@ -221,6 +224,25 @@ def parse_document(
     markdown, title = convert_to_markdown(file_path)
     nodes = parse_markdown_nodes(markdown)
     doc_id = None
+    structure_result = None
+    structure_error = None
+
+    if use_model_structure:
+        try:
+            node_payload = [
+                {
+                    "node_id": node.node_id,
+                    "parent_id": node.parent_id,
+                    "level": node.level,
+                    "title": node.title,
+                    "content": node.content,
+                }
+                for node in nodes
+            ]
+            response = structure_document(markdown, node_payload)
+            structure_result = response.content
+        except Exception as exc:
+            structure_error = str(exc)
 
     if persist:
         if conn is None:
@@ -238,6 +260,8 @@ def parse_document(
         title=title,
         file_name=file_name,
         markdown=markdown if include_markdown else None,
+        structure_result=structure_result,
+        structure_error=structure_error,
         nodes=nodes,
         stats=stats,
     )

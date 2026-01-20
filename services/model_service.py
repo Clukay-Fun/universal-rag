@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from config.settings import get_settings
@@ -63,12 +64,23 @@ def extract_json(prompt: str) -> ModelResponse:
 # ============================================
 # region structure_document
 # ============================================
-def structure_document(markdown: str) -> ModelResponse:
+def structure_document(markdown: str, nodes: list[dict[str, Any]] | None = None) -> ModelResponse:
     settings = get_settings().model
     client = _get_client()
+    if nodes:
+        node_payload = json.dumps(nodes, ensure_ascii=False)
+        user_content = (
+            "Markdown:\n"
+            f"{markdown}\n\n"
+            "Nodes:\n"
+            f"{node_payload}\n\n"
+            "Return structured JSON based on markdown and nodes."
+        )
+    else:
+        user_content = markdown
     messages = [
         {"role": "system", "content": "Extract structured sections from markdown."},
-        {"role": "user", "content": markdown},
+        {"role": "user", "content": user_content},
     ]
     return client.chat_completion(settings.doc_structure_model, messages)
 # endregion

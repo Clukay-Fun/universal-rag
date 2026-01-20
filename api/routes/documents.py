@@ -28,6 +28,7 @@ def parse_document_endpoint(
     file: UploadFile = File(...),
     include_markdown: bool = False,
     persist: bool = False,
+    use_model_structure: bool = True,
 ) -> DocumentParseResponse:
     """
     解析文档
@@ -36,6 +37,7 @@ def parse_document_endpoint(
         file: 上传文件
         include_markdown: 是否返回 Markdown
         persist: 是否持久化
+        use_model_structure: 是否调用模型结构化
     返回:
         解析响应
     """
@@ -59,10 +61,18 @@ def parse_document_endpoint(
                     file.filename,
                     include_markdown,
                     True,
+                    use_model_structure,
                     conn,
                 )
 
-        return parse_document(temp_path, file.filename, include_markdown, False, None)
+        return parse_document(
+            temp_path,
+            file.filename,
+            include_markdown,
+            False,
+            use_model_structure,
+            None,
+        )
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     finally:
