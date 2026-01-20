@@ -17,6 +17,7 @@ from pathlib import Path
 from markitdown import MarkItDown
 from psycopg import Connection
 
+from config.settings import get_settings
 from schemas.document import DocumentNode, DocumentParseResponse, DocumentParseStats
 from services.model_service import structure_document
 
@@ -39,6 +40,57 @@ def convert_to_markdown(file_path: str) -> tuple[str, str | None]:
     converter = MarkItDown()
     result = converter.convert(file_path)
     return result.markdown, result.title
+# endregion
+# ============================================
+
+
+# ============================================
+# region persist_structure
+# ============================================
+def persist_structure(
+    conn: Connection,
+    doc_id: int,
+    model_name: str,
+    payload: dict[str, object] | None,
+    raw_text: str | None,
+    error: str | None,
+) -> None:
+    """
+    持久化结构化结果
+
+    参数:
+        conn: 数据库连接
+        doc_id: 文档ID
+        model_name: 模型名称
+        payload: 结构化 JSON
+        raw_text: 原始文本
+        error: 错误信息
+    返回:
+        None
+    """
+
+    payload_json = json.dumps(payload, ensure_ascii=False) if payload is not None else None
+    conn.execute(
+        """
+        INSERT INTO document_structures (
+            doc_id,
+            model_name,
+            payload,
+            raw_text,
+            error,
+            created_at
+        )
+        VALUES (%s, %s, %s::jsonb, %s, %s, %s)
+        """,
+        (
+            doc_id,
+            model_name,
+            payload_json,
+            raw_text,
+            error,
+            datetime.utcnow(),
+        ),
+    )
 # endregion
 # ============================================
 
@@ -295,6 +347,7 @@ def parse_document(
     doc_id = None
     structure_result = None
     structure_error = None
+    structure_payload: dict[str, object] | None = None
 
     if use_model_structure:
         try:
@@ -313,6 +366,7 @@ def parse_document(
             if structure_result:
                 json_text = _extract_json_text(structure_result)
                 payload = json.loads(json_text)
+                structure_payload = payload if isinstance(payload, dict) else None
                 structured_nodes = _build_nodes_from_structure(payload)
                 if structured_nodes:
                     nodes = structured_nodes
@@ -323,6 +377,14 @@ def parse_document(
         if conn is None:
             raise RuntimeError("Database connection is required for persistence")
         doc_id = persist_document(conn, title or Path(file_path).stem, file_name, nodes)
+        persist_structure(
+            conn,
+            doc_id,
+            get_settings().model.doc_structure_model,
+            structure_payload,
+            structure_result,
+            structure_error,
+        )
 
     stats = DocumentParseStats(
         node_count=len(nodes),
