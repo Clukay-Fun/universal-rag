@@ -34,6 +34,16 @@
 - Format:   <format-command> # 待补充
 - Dev:      <dev-command>    # 待补充
 
+## 环境变量与密钥管理
+- 必填：`DATABASE_URL`（PostgreSQL 连接串）
+- 服务：`FASTAPI_HOST`、`FASTAPI_PORT`
+- 模型：`MODEL_API_BASE_URL`、`MODEL_API_KEY`
+- 日志：`LOG_LEVEL`
+- 本地开发使用 `.env`，生产环境使用受控的 Secret 管理系统
+- 禁止提交真实密钥；仅保留 `.env.example`
+- 避免在日志、错误信息、追踪中输出密钥或敏感字段
+- 不同环境使用不同密钥，定期轮换
+
 ## 单测运行（占位符模板）
 - Pytest：pytest path/to/test.py::TestClass::test_name
 - 单文件：pytest path/to/test.py

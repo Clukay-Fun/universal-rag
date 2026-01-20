@@ -15,7 +15,7 @@ pip install -r requirements.txt
 ```
 
 2) 配置环境变量
-- 复制或编辑 `.env`
+- 复制或编辑 `.env`（参考 `.env.example`）
 - 至少填写 `DATABASE_URL`
 
 3) 初始化数据库
@@ -52,6 +52,7 @@ AGENTS.md            Agent 协作规范
 ## 文档与脚本
 - SQL 初始化与约束：`sql/schema_init.sql`、`sql/schema_constraints.sql`
 - 迁移记录：`sql/schema_migration.sql`
+- 索引策略：`sql/schema_indexes.sql`
 - API 示例：`docs/examples_api.md`
 - CLI 草案：`docs/cli_typer.md`
 - 批量导入模板：`samples/enterprises.json`、`samples/performances.json`、`samples/lawyers.json`
@@ -60,6 +61,19 @@ AGENTS.md            Agent 协作规范
 ```bash
 python -m unittest discover -s tests
 ```
+
+## 环境变量
+- `DATABASE_URL`: PostgreSQL 连接串
+- `FASTAPI_HOST`: FastAPI 监听地址
+- `FASTAPI_PORT`: FastAPI 端口
+- `MODEL_API_BASE_URL`: 模型 API 地址
+- `MODEL_API_KEY`: 模型 API 密钥
+- `LOG_LEVEL`: 日志级别
+
+## 密钥管理
+- 不要提交真实密钥，使用 `.env` 本地注入
+- 生产环境通过密钥管理系统注入
+- 日志与错误信息中禁止输出密钥
 
 ## 注意事项
 - `.env` 中不要提交真实密钥（当前为占位）

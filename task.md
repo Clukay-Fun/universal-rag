@@ -5,8 +5,8 @@
 - [x] 初始化三张业务表（enterprises / lawyers / performances）
 - [x] 应用主键与校验约束（amount/subject_amount）
 - [x] 生成初始化与迁移 SQL 文档
-- [ ] 建立索引策略（查询常用字段）
-- [ ] 补充环境变量清单与密钥管理规范
+- [x] 建立索引策略（查询常用字段）
+- [x] 补充环境变量清单与密钥管理规范
 
 ## 文档解析与结构化
 - [ ] Word → MarkItDown 转换
