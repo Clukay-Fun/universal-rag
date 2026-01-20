@@ -1,0 +1,14 @@
+[
+  {
+    "id": 501,
+    "name": "Alice",
+    "id_card": "320101199001011234",
+    "license_no": "A-2024-001",
+    "resume": "Sample resume",
+    "resume_embedding": [0.1, 0.2, 0.3],
+    "id_card_image": "id-card.png",
+    "degree_image": "degree.png",
+    "diploma_image": "diploma.png",
+    "license_image": "license.png"
+  }
+]

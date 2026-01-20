@@ -144,6 +144,40 @@ def create_performance(conn: Connection, data: PerformanceCreate) -> Performance
 # endregion
 # ============================================
 
+
+# ============================================
+# region delete_performance
+# ============================================
+def delete_performance(conn: Connection, record_id: int) -> int | None:
+    """
+    删除业绩记录
+
+    参数:
+        conn: 数据库连接
+        record_id: 业绩ID
+    返回:
+        删除的 ID 或 None
+    """
+
+    try:
+        row = conn.execute(
+            """
+            DELETE FROM performances
+            WHERE id = %s
+            RETURNING id
+            """,
+            (record_id,),
+        ).fetchone()
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+
+    if not row:
+        return None
+    return row[0]
+# endregion
+# ============================================
 # ============================================
 # region get_performance
 # ============================================

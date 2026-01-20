@@ -40,3 +40,14 @@ class EnterpriseResponse(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(extra="forbid")
+
+
+class EnterpriseDeleteResponse(BaseModel):
+    """
+    企业删除响应
+    """
+
+    credit_code: str
+    deleted: bool
+
+    model_config = ConfigDict(extra="forbid")

@@ -12,8 +12,8 @@ from psycopg import Connection
 from psycopg.errors import UniqueViolation
 
 from api.dependencies import get_db_connection
-from schemas.performance import PerformanceCreate, PerformanceResponse
-from services.performance_service import create_performance, get_performance
+from schemas.performance import PerformanceCreate, PerformanceDeleteResponse, PerformanceResponse
+from services.performance_service import create_performance, delete_performance, get_performance
 
 router = APIRouter(prefix="/performances", tags=["performances"])
 
@@ -47,6 +47,31 @@ def create_performance_endpoint(
 # endregion
 # ============================================
 
+
+# ============================================
+# region delete_performance_endpoint
+# ============================================
+@router.delete("/{record_id}", response_model=PerformanceDeleteResponse)
+def delete_performance_endpoint(
+    record_id: int,
+    conn: Connection = Depends(get_db_connection),
+) -> PerformanceDeleteResponse:
+    """
+    删除业绩
+
+    参数:
+        record_id: 业绩ID
+        conn: 数据库连接
+    返回:
+        删除响应
+    """
+
+    result = delete_performance(conn, record_id)
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="performance not found")
+    return PerformanceDeleteResponse(id=result, deleted=True)
+# endregion
+# ============================================
 # ============================================
 # region get_performance_endpoint
 # ============================================

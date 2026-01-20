@@ -203,3 +203,39 @@ POST /matches/run
   ]
 }
 ```
+
+## 企业删除
+
+DELETE /enterprises/{credit_code}
+
+响应示例
+```json
+{
+  "credit_code": "91320101TEST00001",
+  "deleted": true
+}
+```
+
+## 业绩删除
+
+DELETE /performances/{record_id}
+
+响应示例
+```json
+{
+  "id": 1001,
+  "deleted": true
+}
+```
+
+## 律师删除
+
+DELETE /lawyers/{record_id}
+
+响应示例
+```json
+{
+  "id": 501,
+  "deleted": true
+}
+```

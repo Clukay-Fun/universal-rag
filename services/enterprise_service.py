@@ -76,6 +76,40 @@ def create_enterprise(conn: Connection, data: EnterpriseCreate) -> EnterpriseRes
 # endregion
 # ============================================
 
+
+# ============================================
+# region delete_enterprise
+# ============================================
+def delete_enterprise(conn: Connection, credit_code: str) -> str | None:
+    """
+    删除企业信息
+
+    参数:
+        conn: 数据库连接
+        credit_code: 统一社会信用代码
+    返回:
+        删除的信用代码或 None
+    """
+
+    try:
+        row = conn.execute(
+            """
+            DELETE FROM enterprises
+            WHERE credit_code = %s
+            RETURNING credit_code
+            """,
+            (credit_code,),
+        ).fetchone()
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+
+    if not row:
+        return None
+    return row[0]
+# endregion
+# ============================================
 # ============================================
 # region get_enterprise
 # ============================================

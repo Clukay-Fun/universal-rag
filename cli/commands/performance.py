@@ -60,6 +60,7 @@ def delete_performance(
     参数:
         ctx: Typer 上下文
         record_id: 主键ID
+        confirm: 是否跳过确认
         json_output: 是否输出 JSON
     返回:
         None
@@ -119,111 +120,124 @@ def import_performances(
 
     now = datetime.utcnow()
     payloads = []
-    for item in data:
-        if not isinstance(item, dict):
-            raise typer.BadParameter("Each item must be an object")
+    errors: list[dict[str, object]] = []
+    for index, item in enumerate(data):
+        try:
+            if not isinstance(item, dict):
+                raise ValueError("Each item must be an object")
 
-        record_id = item.get("id")
-        amount_value = _parse_decimal_input(item.get("amount"), "amount")
-        if record_id is None or amount_value is None:
-            raise typer.BadParameter("id and amount are required")
+            record_id = item.get("id")
+            amount_value = _parse_decimal_input(item.get("amount"), "amount")
+            if record_id is None or amount_value is None:
+                raise ValueError("id and amount are required")
 
-        subject_amount_value = _parse_decimal_input(item.get("subject_amount"), "subject_amount")
-        ensure_non_negative(amount_value, "amount")
-        if subject_amount_value is not None:
-            ensure_non_negative(subject_amount_value, "subject_amount")
-
-        sign_date_raw = item.get("sign_date_raw")
-        sign_date_norm = item.get("sign_date_norm")
-        raw_value = str(sign_date_raw) if sign_date_raw is not None else None
-        norm_value = str(sign_date_norm) if sign_date_norm is not None else None
-        sign_date_raw, sign_date_norm_date = parse_sign_date(raw_value, norm_value)
-
-        payloads.append(
-            {
-                "id": int(record_id),
-                "file_name": item.get("file_name"),
-                "party_a": normalize_commas(item.get("party_a")),
-                "party_a_id": normalize_commas(item.get("party_a_id")),
-                "contract_number": item.get("contract_number"),
-                "amount": amount_value,
-                "fee_method": item.get("fee_method"),
-                "sign_date_norm": sign_date_norm_date,
-                "sign_date_raw": sign_date_raw,
-                "project_type": item.get("project_type"),
-                "project_detail": item.get("project_detail"),
-                "subject_amount": subject_amount_value,
-                "opponent": item.get("opponent"),
-                "team_member": normalize_commas(item.get("team_member")),
-                "summary": None,
-                "image_data": None,
-                "image_count": item.get("image_count"),
-                "raw_text": item.get("raw_text"),
-                "created_at": now,
-                "updated_at": now,
-                "embedding": None,
-            }
-        )
-
-    with get_connection(_get_db_url(ctx)) as conn:
-        with conn.cursor() as cursor:
-            cursor.executemany(
-                """
-                INSERT INTO performances (
-                    id,
-                    file_name,
-                    party_a,
-                    party_a_id,
-                    contract_number,
-                    amount,
-                    fee_method,
-                    sign_date_norm,
-                    sign_date_raw,
-                    project_type,
-                    project_detail,
-                    subject_amount,
-                    opponent,
-                    team_member,
-                    summary,
-                    image_data,
-                    image_count,
-                    raw_text,
-                    created_at,
-                    updated_at,
-                    embedding
-                )
-                VALUES (
-                    %(id)s,
-                    %(file_name)s,
-                    %(party_a)s,
-                    %(party_a_id)s,
-                    %(contract_number)s,
-                    %(amount)s,
-                    %(fee_method)s,
-                    %(sign_date_norm)s,
-                    %(sign_date_raw)s,
-                    %(project_type)s,
-                    %(project_detail)s,
-                    %(subject_amount)s,
-                    %(opponent)s,
-                    %(team_member)s,
-                    %(summary)s,
-                    %(image_data)s,
-                    %(image_count)s,
-                    %(raw_text)s,
-                    %(created_at)s,
-                    %(updated_at)s,
-                    %(embedding)s
-                )
-                """,
-                payloads,
+            subject_amount_value = _parse_decimal_input(
+                item.get("subject_amount"), "subject_amount"
             )
+            ensure_non_negative(amount_value, "amount")
+            if subject_amount_value is not None:
+                ensure_non_negative(subject_amount_value, "subject_amount")
 
-    result = {"inserted": len(payloads)}
+            sign_date_raw = item.get("sign_date_raw")
+            sign_date_norm = item.get("sign_date_norm")
+            raw_value = str(sign_date_raw) if sign_date_raw is not None else None
+            norm_value = str(sign_date_norm) if sign_date_norm is not None else None
+            sign_date_raw, sign_date_norm_date = parse_sign_date(raw_value, norm_value)
+
+            payloads.append(
+                {
+                    "id": int(record_id),
+                    "file_name": item.get("file_name"),
+                    "party_a": normalize_commas(item.get("party_a")),
+                    "party_a_id": normalize_commas(item.get("party_a_id")),
+                    "contract_number": item.get("contract_number"),
+                    "amount": amount_value,
+                    "fee_method": item.get("fee_method"),
+                    "sign_date_norm": sign_date_norm_date,
+                    "sign_date_raw": sign_date_raw,
+                    "project_type": item.get("project_type"),
+                    "project_detail": item.get("project_detail"),
+                    "subject_amount": subject_amount_value,
+                    "opponent": item.get("opponent"),
+                    "team_member": normalize_commas(item.get("team_member")),
+                    "summary": None,
+                    "image_data": None,
+                    "image_count": item.get("image_count"),
+                    "raw_text": item.get("raw_text"),
+                    "created_at": now,
+                    "updated_at": now,
+                    "embedding": None,
+                }
+            )
+        except Exception as exc:
+            errors.append({"index": index, "error": str(exc)})
+
+    if payloads:
+        with get_connection(_get_db_url(ctx)) as conn:
+            with conn.cursor() as cursor:
+                cursor.executemany(
+                    """
+                    INSERT INTO performances (
+                        id,
+                        file_name,
+                        party_a,
+                        party_a_id,
+                        contract_number,
+                        amount,
+                        fee_method,
+                        sign_date_norm,
+                        sign_date_raw,
+                        project_type,
+                        project_detail,
+                        subject_amount,
+                        opponent,
+                        team_member,
+                        summary,
+                        image_data,
+                        image_count,
+                        raw_text,
+                        created_at,
+                        updated_at,
+                        embedding
+                    )
+                    VALUES (
+                        %(id)s,
+                        %(file_name)s,
+                        %(party_a)s,
+                        %(party_a_id)s,
+                        %(contract_number)s,
+                        %(amount)s,
+                        %(fee_method)s,
+                        %(sign_date_norm)s,
+                        %(sign_date_raw)s,
+                        %(project_type)s,
+                        %(project_detail)s,
+                        %(subject_amount)s,
+                        %(opponent)s,
+                        %(team_member)s,
+                        %(summary)s,
+                        %(image_data)s,
+                        %(image_count)s,
+                        %(raw_text)s,
+                        %(created_at)s,
+                        %(updated_at)s,
+                        %(embedding)s
+                    )
+                    """,
+                    payloads,
+                )
+
+    result = {"inserted": len(payloads), "failed": len(errors), "errors": errors}
     if json_output:
         typer.echo(json.dumps(result, default=str))
     else:
         typer.echo(f"Performances imported: {len(payloads)}")
+        if errors:
+            for error in errors:
+                typer.echo(f"Error[{error['index']}]: {error['error']}")
+
+    if errors:
+        raise typer.Exit(code=1)
 # endregion
 # ============================================
 

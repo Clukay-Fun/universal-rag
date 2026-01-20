@@ -12,8 +12,8 @@ from psycopg import Connection
 from psycopg.errors import UniqueViolation
 
 from api.dependencies import get_db_connection
-from schemas.enterprise import EnterpriseCreate, EnterpriseResponse
-from services.enterprise_service import create_enterprise, get_enterprise
+from schemas.enterprise import EnterpriseCreate, EnterpriseDeleteResponse, EnterpriseResponse
+from services.enterprise_service import create_enterprise, delete_enterprise, get_enterprise
 
 router = APIRouter(prefix="/enterprises", tags=["enterprises"])
 
@@ -45,6 +45,31 @@ def create_enterprise_endpoint(
 # endregion
 # ============================================
 
+
+# ============================================
+# region delete_enterprise_endpoint
+# ============================================
+@router.delete("/{credit_code}", response_model=EnterpriseDeleteResponse)
+def delete_enterprise_endpoint(
+    credit_code: str,
+    conn: Connection = Depends(get_db_connection),
+) -> EnterpriseDeleteResponse:
+    """
+    删除企业
+
+    参数:
+        credit_code: 统一社会信用代码
+        conn: 数据库连接
+    返回:
+        删除响应
+    """
+
+    result = delete_enterprise(conn, credit_code)
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="enterprise not found")
+    return EnterpriseDeleteResponse(credit_code=result, deleted=True)
+# endregion
+# ============================================
 # ============================================
 # region get_enterprise_endpoint
 # ============================================

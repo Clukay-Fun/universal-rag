@@ -94,20 +94,20 @@ python -m cli.main match-run --req-file tender.txt --top-k 5
 ```
 python -m cli.main enterprise insert --credit-code CODE --company-name NAME
 python -m cli.main enterprise get --credit-code CODE
-python -m cli.main enterprise delete --credit-code CODE
-python -m cli.main enterprise import --file enterprises.json
+python -m cli.main enterprise delete --credit-code CODE --yes
+python -m cli.main enterprise import --file samples/enterprises.json
 python -m cli.main enterprise export --out enterprises_export.json
 
 python -m cli.main performance insert --id 1001 --amount 5
 python -m cli.main performance get --id 1001
-python -m cli.main performance delete --id 1001
-python -m cli.main performance import --file performances.json
+python -m cli.main performance delete --id 1001 --yes
+python -m cli.main performance import --file samples/performances.json
 python -m cli.main performance export --out performances_export.json
 
 python -m cli.main lawyer insert --id 1 --name "张三"
 python -m cli.main lawyer get --id 1
-python -m cli.main lawyer delete --id 1
-python -m cli.main lawyer import --file lawyers.json
+python -m cli.main lawyer delete --id 1 --yes
+python -m cli.main lawyer import --file samples/lawyers.json
 python -m cli.main lawyer export --out lawyers_export.json
 ```
 

@@ -57,57 +57,68 @@ def import_enterprises(
 
     now = datetime.utcnow()
     payloads = []
-    for item in data:
-        if not isinstance(item, dict):
-            raise typer.BadParameter("Each item must be an object")
-        credit_code = item.get("credit_code")
-        company_name = item.get("company_name")
-        if not credit_code or not company_name:
-            raise typer.BadParameter("credit_code and company_name are required")
-        payloads.append(
-            {
-                "credit_code": normalize_commas(str(credit_code)),
-                "company_name": company_name,
-                "business_scope": item.get("business_scope"),
-                "industry": item.get("industry"),
-                "enterprise_type": item.get("enterprise_type"),
-                "created_at": now,
-                "updated_at": now,
-            }
-        )
-
-    db_url = _get_db_url(ctx)
-    with get_connection(db_url) as conn:
-        with conn.cursor() as cursor:
-            cursor.executemany(
-                """
-                INSERT INTO enterprises (
-                    credit_code,
-                    company_name,
-                    business_scope,
-                    industry,
-                    enterprise_type,
-                    created_at,
-                    updated_at
-                )
-                VALUES (
-                    %(credit_code)s,
-                    %(company_name)s,
-                    %(business_scope)s,
-                    %(industry)s,
-                    %(enterprise_type)s,
-                    %(created_at)s,
-                    %(updated_at)s
-                )
-                """,
-                payloads,
+    errors: list[dict[str, object]] = []
+    for index, item in enumerate(data):
+        try:
+            if not isinstance(item, dict):
+                raise ValueError("Each item must be an object")
+            credit_code = item.get("credit_code")
+            company_name = item.get("company_name")
+            if not credit_code or not company_name:
+                raise ValueError("credit_code and company_name are required")
+            payloads.append(
+                {
+                    "credit_code": normalize_commas(str(credit_code)),
+                    "company_name": company_name,
+                    "business_scope": item.get("business_scope"),
+                    "industry": item.get("industry"),
+                    "enterprise_type": item.get("enterprise_type"),
+                    "created_at": now,
+                    "updated_at": now,
+                }
             )
+        except Exception as exc:
+            errors.append({"index": index, "error": str(exc)})
 
-    result = {"inserted": len(payloads)}
+    if payloads:
+        db_url = _get_db_url(ctx)
+        with get_connection(db_url) as conn:
+            with conn.cursor() as cursor:
+                cursor.executemany(
+                    """
+                    INSERT INTO enterprises (
+                        credit_code,
+                        company_name,
+                        business_scope,
+                        industry,
+                        enterprise_type,
+                        created_at,
+                        updated_at
+                    )
+                    VALUES (
+                        %(credit_code)s,
+                        %(company_name)s,
+                        %(business_scope)s,
+                        %(industry)s,
+                        %(enterprise_type)s,
+                        %(created_at)s,
+                        %(updated_at)s
+                    )
+                    """,
+                    payloads,
+                )
+
+    result = {"inserted": len(payloads), "failed": len(errors), "errors": errors}
     if json_output:
         typer.echo(json.dumps(result, default=str))
     else:
         typer.echo(f"Enterprises imported: {len(payloads)}")
+        if errors:
+            for error in errors:
+                typer.echo(f"Error[{error['index']}]: {error['error']}")
+
+    if errors:
+        raise typer.Exit(code=1)
 # endregion
 # ============================================
 
@@ -183,6 +194,7 @@ def delete_enterprise(
     参数:
         ctx: Typer 上下文
         credit_code: 统一社会信用代码
+        confirm: 是否跳过确认
         json_output: 是否输出 JSON
     返回:
         None

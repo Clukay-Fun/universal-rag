@@ -105,7 +105,7 @@ python -m cli.main --db-url postgresql://postgres:1234@localhost:5432/universal-
 企业
 ```
 python -m cli.main --db-url postgresql://postgres:1234@localhost:5432/universal-rag \
-  enterprise import --file enterprises.json
+  enterprise import --file samples/enterprises.json
 
 python -m cli.main --db-url postgresql://postgres:1234@localhost:5432/universal-rag \
   enterprise export --out enterprises_export.json
@@ -114,7 +114,7 @@ python -m cli.main --db-url postgresql://postgres:1234@localhost:5432/universal-
 业绩
 ```
 python -m cli.main --db-url postgresql://postgres:1234@localhost:5432/universal-rag \
-  performance import --file performances.json
+  performance import --file samples/performances.json
 
 python -m cli.main --db-url postgresql://postgres:1234@localhost:5432/universal-rag \
   performance export --out performances_export.json
@@ -123,7 +123,7 @@ python -m cli.main --db-url postgresql://postgres:1234@localhost:5432/universal-
 律师
 ```
 python -m cli.main --db-url postgresql://postgres:1234@localhost:5432/universal-rag \
-  lawyer import --file lawyers.json
+  lawyer import --file samples/lawyers.json
 
 python -m cli.main --db-url postgresql://postgres:1234@localhost:5432/universal-rag \
   lawyer export --out lawyers_export.json

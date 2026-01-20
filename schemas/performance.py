@@ -90,3 +90,14 @@ class PerformanceResponse(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(extra="forbid")
+
+
+class PerformanceDeleteResponse(BaseModel):
+    """
+    业绩删除响应
+    """
+
+    id: int
+    deleted: bool
+
+    model_config = ConfigDict(extra="forbid")

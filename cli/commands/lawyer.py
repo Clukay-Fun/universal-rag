@@ -59,83 +59,94 @@ def import_lawyers(
 
     now = datetime.utcnow()
     payloads = []
-    for item in data:
-        if not isinstance(item, dict):
-            raise typer.BadParameter("Each item must be an object")
+    errors: list[dict[str, object]] = []
+    for index, item in enumerate(data):
+        try:
+            if not isinstance(item, dict):
+                raise ValueError("Each item must be an object")
 
-        record_id = item.get("id")
-        name = item.get("name")
-        if record_id is None or not name:
-            raise typer.BadParameter("id and name are required")
+            record_id = item.get("id")
+            name = item.get("name")
+            if record_id is None or not name:
+                raise ValueError("id and name are required")
 
-        embedding_value = item.get("resume_embedding")
-        if isinstance(embedding_value, list):
-            embedding_list = [float(v) for v in embedding_value]
-        elif isinstance(embedding_value, str):
-            embedding_list = _parse_embedding(embedding_value)
-        elif embedding_value is None:
-            embedding_list = None
-        else:
-            raise typer.BadParameter("resume_embedding must be list or string")
+            embedding_value = item.get("resume_embedding")
+            if isinstance(embedding_value, list):
+                embedding_list = [float(v) for v in embedding_value]
+            elif isinstance(embedding_value, str):
+                embedding_list = _parse_embedding(embedding_value)
+            elif embedding_value is None:
+                embedding_list = None
+            else:
+                raise ValueError("resume_embedding must be list or string")
 
-        payloads.append(
-            {
-                "id": int(record_id),
-                "name": name,
-                "id_card": item.get("id_card"),
-                "license_no": item.get("license_no"),
-                "resume": item.get("resume"),
-                "resume_embedding": _format_vector(embedding_list),
-                "id_card_image": item.get("id_card_image"),
-                "degree_image": item.get("degree_image"),
-                "diploma_image": item.get("diploma_image"),
-                "license_image": item.get("license_image"),
-                "created_at": now,
-                "updated_at": now,
-            }
-        )
-
-    with get_connection(_get_db_url(ctx)) as conn:
-        with conn.cursor() as cursor:
-            cursor.executemany(
-                """
-                INSERT INTO lawyers (
-                    id,
-                    name,
-                    id_card,
-                    license_no,
-                    resume,
-                    resume_embedding,
-                    id_card_image,
-                    degree_image,
-                    diploma_image,
-                    license_image,
-                    created_at,
-                    updated_at
-                )
-                VALUES (
-                    %(id)s,
-                    %(name)s,
-                    %(id_card)s,
-                    %(license_no)s,
-                    %(resume)s,
-                    %(resume_embedding)s,
-                    %(id_card_image)s,
-                    %(degree_image)s,
-                    %(diploma_image)s,
-                    %(license_image)s,
-                    %(created_at)s,
-                    %(updated_at)s
-                )
-                """,
-                payloads,
+            payloads.append(
+                {
+                    "id": int(record_id),
+                    "name": name,
+                    "id_card": item.get("id_card"),
+                    "license_no": item.get("license_no"),
+                    "resume": item.get("resume"),
+                    "resume_embedding": _format_vector(embedding_list),
+                    "id_card_image": item.get("id_card_image"),
+                    "degree_image": item.get("degree_image"),
+                    "diploma_image": item.get("diploma_image"),
+                    "license_image": item.get("license_image"),
+                    "created_at": now,
+                    "updated_at": now,
+                }
             )
+        except Exception as exc:
+            errors.append({"index": index, "error": str(exc)})
 
-    result = {"inserted": len(payloads)}
+    if payloads:
+        with get_connection(_get_db_url(ctx)) as conn:
+            with conn.cursor() as cursor:
+                cursor.executemany(
+                    """
+                    INSERT INTO lawyers (
+                        id,
+                        name,
+                        id_card,
+                        license_no,
+                        resume,
+                        resume_embedding,
+                        id_card_image,
+                        degree_image,
+                        diploma_image,
+                        license_image,
+                        created_at,
+                        updated_at
+                    )
+                    VALUES (
+                        %(id)s,
+                        %(name)s,
+                        %(id_card)s,
+                        %(license_no)s,
+                        %(resume)s,
+                        %(resume_embedding)s,
+                        %(id_card_image)s,
+                        %(degree_image)s,
+                        %(diploma_image)s,
+                        %(license_image)s,
+                        %(created_at)s,
+                        %(updated_at)s
+                    )
+                    """,
+                    payloads,
+                )
+
+    result = {"inserted": len(payloads), "failed": len(errors), "errors": errors}
     if json_output:
         typer.echo(json.dumps(result, default=str))
     else:
         typer.echo(f"Lawyers imported: {len(payloads)}")
+        if errors:
+            for error in errors:
+                typer.echo(f"Error[{error['index']}]: {error['error']}")
+
+    if errors:
+        raise typer.Exit(code=1)
 # endregion
 # ============================================
 
@@ -382,6 +393,7 @@ def get_lawyer(
     参数:
         ctx: Typer 上下文
         record_id: 主键ID
+        confirm: 是否跳过确认
         json_output: 是否输出 JSON
     返回:
         None

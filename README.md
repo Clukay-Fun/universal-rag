@@ -54,6 +54,12 @@ AGENTS.md            Agent 协作规范
 - 迁移记录：`sql/schema_migration.sql`
 - API 示例：`docs/examples_api.md`
 - CLI 草案：`docs/cli_typer.md`
+- 批量导入模板：`samples/enterprises.json`、`samples/performances.json`、`samples/lawyers.json`
+
+## 单元测试
+```bash
+python -m unittest discover -s tests
+```
 
 ## 注意事项
 - `.env` 中不要提交真实密钥（当前为占位）
