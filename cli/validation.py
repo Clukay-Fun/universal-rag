@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 DATE_FORMATS = ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y年%m月%d日")
 
@@ -43,6 +43,23 @@ def ensure_non_negative(value: Decimal, field_name: str) -> None:
 
     if value < 0:
         raise ValueError(f"{field_name} must be >= 0")
+
+
+def parse_decimal(value: str, field_name: str) -> Decimal:
+    """
+    解析数值字符串为 Decimal
+
+    参数:
+        value: 数值字符串
+        field_name: 字段名
+    返回:
+        Decimal 数值
+    """
+
+    try:
+        return Decimal(value)
+    except (InvalidOperation, ValueError) as exc:
+        raise ValueError(f"{field_name} is not a valid number") from exc
 
 
 def parse_sign_date(raw: str | None, norm: str | None) -> tuple[str | None, date | None]:

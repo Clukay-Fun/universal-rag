@@ -52,4 +52,4 @@ AGENTS.md            Agent 协作规范
 
 ## 注意事项
 - `.env` 中不要提交真实密钥（当前为占位）
-- `requirements.txt` 中部分依赖包名需根据实际确认
+- 依赖已包含 `markitdown` 与 `sse-starlette`，如需锁版本请另行维护

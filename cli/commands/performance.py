@@ -10,12 +10,15 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from decimal import Decimal
-
 import typer
 
 from cli.db import get_connection
-from cli.validation import ensure_non_negative, normalize_commas, parse_sign_date
+from cli.validation import (
+    ensure_non_negative,
+    normalize_commas,
+    parse_decimal,
+    parse_sign_date,
+)
 
 app = typer.Typer(help="Performance data commands")
 
@@ -35,13 +38,13 @@ def insert_performance(
     party_a: str | None = typer.Option(None, help="甲方名称（逗号分隔）"),
     party_a_id: str | None = typer.Option(None, help="甲方证件号（逗号分隔）"),
     contract_number: int | None = typer.Option(None, help="合同编号"),
-    amount: Decimal = typer.Option(..., help="金额（万元）"),
+    amount: str = typer.Option(..., help="金额（万元）"),
     fee_method: str | None = typer.Option(None, help="计费方式（原文）"),
     sign_date_raw: str | None = typer.Option(None, help="签署日期原文"),
     sign_date_norm: str | None = typer.Option(None, help="签署日期（YYYY-MM-DD）"),
     project_type: str | None = typer.Option(None, help="合同类型"),
     project_detail: str | None = typer.Option(None, help="项目详情"),
-    subject_amount: Decimal | None = typer.Option(None, help="标的金额（万元）"),
+    subject_amount: str | None = typer.Option(None, help="标的金额（万元）"),
     opponent: str | None = typer.Option(None, help="相对方/对手方"),
     team_member: str | None = typer.Option(None, help="团队成员"),
     image_count: int | None = typer.Option(None, help="图片数量"),
@@ -74,9 +77,13 @@ def insert_performance(
         None
     """
 
-    ensure_non_negative(amount, "amount")
+    amount_decimal = parse_decimal(amount, "amount")
+    ensure_non_negative(amount_decimal, "amount")
+
+    subject_amount_decimal = None
     if subject_amount is not None:
-        ensure_non_negative(subject_amount, "subject_amount")
+        subject_amount_decimal = parse_decimal(subject_amount, "subject_amount")
+        ensure_non_negative(subject_amount_decimal, "subject_amount")
 
     sign_date_raw, sign_date_norm_date = parse_sign_date(sign_date_raw, sign_date_norm)
 
@@ -86,13 +93,13 @@ def insert_performance(
         "party_a": normalize_commas(party_a),
         "party_a_id": normalize_commas(party_a_id),
         "contract_number": contract_number,
-        "amount": amount,
+        "amount": amount_decimal,
         "fee_method": fee_method,
         "sign_date_raw": sign_date_raw,
         "sign_date_norm": sign_date_norm_date,
         "project_type": project_type,
         "project_detail": project_detail,
-        "subject_amount": subject_amount,
+        "subject_amount": subject_amount_decimal,
         "opponent": opponent,
         "team_member": normalize_commas(team_member),
         "summary": None,
