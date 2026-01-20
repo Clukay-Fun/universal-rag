@@ -91,6 +91,7 @@ def persist_structure(
             datetime.utcnow(),
         ),
     )
+    conn.commit()
 # endregion
 # ============================================
 
