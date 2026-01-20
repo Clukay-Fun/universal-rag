@@ -22,14 +22,20 @@ from cli.validation import (
 
 app = typer.Typer(help="Performance data commands")
 
-
+# ============================================
+# region _get_db_url
+# ============================================
 def _get_db_url(ctx: typer.Context) -> str:
     db_url = ctx.obj.get("db_url") if ctx.obj else None
     if not db_url:
         raise typer.BadParameter("Database URL is required")
     return db_url
+# endregion
+# ============================================
 
-
+# ============================================
+# region insert_performance
+# ============================================
 @app.command("insert")
 def insert_performance(
     ctx: typer.Context,
@@ -168,8 +174,12 @@ def insert_performance(
         typer.echo(json.dumps({"status": "ok", **payload}, default=str))
     else:
         typer.echo("Performance inserted")
+# endregion
+# ============================================
 
-
+# ============================================
+# region get_performance
+# ============================================
 @app.command("get")
 def get_performance(
     ctx: typer.Context,
@@ -228,3 +238,5 @@ def get_performance(
         typer.echo(json.dumps(result, default=str))
     else:
         typer.echo(f"Performance: {result['id']}")
+# endregion
+# ============================================

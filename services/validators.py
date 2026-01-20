@@ -1,16 +1,16 @@
 """
-描述: 数据校验与标准化
+描述: 服务层校验工具
 主要功能:
-    - 金额非负校验
-    - 日期解析与标准化
-    - 分隔符统一
+    - 日期解析
+    - 逗号标准化
+    - 数值非负校验
 依赖: 标准库
 """
 
 from __future__ import annotations
 
 from datetime import date, datetime
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 
 DATE_FORMATS = ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y年%m月%d日")
 
@@ -53,46 +53,23 @@ def ensure_non_negative(value: Decimal, field_name: str) -> None:
 # ============================================
 
 # ============================================
-# region parse_decimal
-# ============================================
-def parse_decimal(value: str, field_name: str) -> Decimal:
-    """
-    解析数值字符串为 Decimal
-
-    参数:
-        value: 数值字符串
-        field_name: 字段名
-    返回:
-        Decimal 数值
-    """
-
-    try:
-        return Decimal(value)
-    except (InvalidOperation, ValueError) as exc:
-        raise ValueError(f"{field_name} is not a valid number") from exc
-# endregion
-# ============================================
-
-# ============================================
 # region parse_sign_date
 # ============================================
-def parse_sign_date(raw: str | None, norm: str | None) -> tuple[str | None, date | None]:
+def parse_sign_date(
+    raw: str | None, norm: date | None
+) -> tuple[str | None, date | None]:
     """
     解析签署日期
 
     参数:
         raw: 原始日期字符串
-        norm: 标准化日期字符串
+        norm: 标准化日期
     返回:
         原文与标准化日期
     """
 
     if norm:
-        try:
-            parsed = date.fromisoformat(norm)
-        except ValueError as exc:
-            raise ValueError("sign_date_norm format must be YYYY-MM-DD") from exc
-        return raw or norm, parsed
+        return raw or norm.isoformat(), norm
 
     if raw:
         for fmt in DATE_FORMATS:

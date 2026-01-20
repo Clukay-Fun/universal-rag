@@ -23,6 +23,11 @@ pip install -r requirements.txt
 psql "${DATABASE_URL}" -f sql/schema_init.sql
 ```
 
+4) 启动 FastAPI
+```bash
+uvicorn api.main:app --host 0.0.0.0 --port 8001 --reload
+```
+
 ## CLI 使用（Typer）
 
 ```bash

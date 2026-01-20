@@ -18,14 +18,20 @@ from cli.validation import normalize_commas
 
 app = typer.Typer(help="Enterprise data commands")
 
-
+# ============================================
+# region _get_db_url
+# ============================================
 def _get_db_url(ctx: typer.Context) -> str:
     db_url = ctx.obj.get("db_url") if ctx.obj else None
     if not db_url:
         raise typer.BadParameter("Database URL is required")
     return db_url
+# endregion
+# ============================================
 
-
+# ============================================
+# region insert_enterprise
+# ============================================
 @app.command("insert")
 def insert_enterprise(
     ctx: typer.Context,
@@ -84,8 +90,12 @@ def insert_enterprise(
         typer.echo(json.dumps({"status": "ok", **payload}, default=str))
     else:
         typer.echo("Enterprise inserted")
+# endregion
+# ============================================
 
-
+# ============================================
+# region get_enterprise
+# ============================================
 @app.command("get")
 def get_enterprise(
     ctx: typer.Context,
@@ -132,3 +142,5 @@ def get_enterprise(
         typer.echo(json.dumps(result, default=str))
     else:
         typer.echo(f"Enterprise: {result['company_name']}")
+# endregion
+# ============================================

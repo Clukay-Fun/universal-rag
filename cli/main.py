@@ -19,7 +19,9 @@ app = typer.Typer(help="Universal RAG CLI")
 app.add_typer(enterprise_app, name="enterprise")
 app.add_typer(performance_app, name="performance")
 
-
+# ============================================
+# region main
+# ============================================
 @app.callback()
 def main(
     ctx: typer.Context,
@@ -42,6 +44,8 @@ def main(
     if not db_url:
         raise typer.BadParameter("DATABASE_URL or --db-url is required")
     ctx.obj = {"db_url": db_url}
+# endregion
+# ============================================
 
 
 if __name__ == "__main__":

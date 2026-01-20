@@ -14,7 +14,9 @@ from typing import Iterator
 import psycopg
 from psycopg import Connection
 
-
+# ============================================
+# region get_connection
+# ============================================
 @contextmanager
 def get_connection(db_url: str) -> Iterator[Connection]:
     """
@@ -35,3 +37,5 @@ def get_connection(db_url: str) -> Iterator[Connection]:
         raise
     finally:
         conn.close()
+# endregion
+# ============================================
