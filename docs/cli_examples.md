@@ -128,3 +128,14 @@ python -m cli.main --db-url postgresql://postgres:1234@localhost:5432/universal-
 python -m cli.main --db-url postgresql://postgres:1234@localhost:5432/universal-rag \
   lawyer export --out lawyers_export.json
 ```
+
+## 对话模式
+
+```
+python -m cli.main chat chat
+```
+
+继续会话
+```
+python -m cli.main chat chat --session <session_id>
+```

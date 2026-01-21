@@ -109,6 +109,9 @@ python -m cli.main lawyer get --id 1
 python -m cli.main lawyer delete --id 1 --yes
 python -m cli.main lawyer import --file samples/lawyers.json
 python -m cli.main lawyer export --out lawyers_export.json
+
+python -m cli.main chat chat
+python -m cli.main chat chat --session <session_id>
 ```
 
 ### Agent 运行

@@ -46,7 +46,7 @@
 - [x] SSE 会话消息接口（POST /chat/sessions/{id}/messages）
 - [x] 会话历史截断（20 条 + 2000 字符）
 - [x] 引用写入会话消息（source_id/node_id/score/path）
-- [ ] CLI chat 交互模式
+- [x] CLI chat 交互模式
 
 ## FastAPI
 - [x] Pydantic Schema（企业/业绩）
