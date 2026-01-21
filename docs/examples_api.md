@@ -331,6 +331,37 @@ POST /vectors/document-nodes
 }
 ```
 
+## RAG 问答
+
+POST /qa/ask
+
+请求示例
+```json
+{
+  "question": "法律顾问费用如何支付？",
+  "top_k": 5,
+  "doc_id": 1
+}
+```
+
+响应示例
+```json
+{
+  "answer": "法律顾问费用分两次支付，分别在签订后30日内和次年12月31日前支付。[1:9]",
+  "citations": [
+    {
+      "source_id": "1",
+      "chunk_id": 9,
+      "score": 0.75,
+      "source_title": "常年法律顾问合同",
+      "file_name": "天然气有限公司常法合同.pdf",
+      "path": ["常年法律顾问合同", "第八条 法律顾问费用及其支付"],
+      "party_a_name": "深圳市深汕特别合作区深燃天然气有限有限公司"
+    }
+  ]
+}
+```
+
 ## 向量检索
 
 POST /vectors/search
