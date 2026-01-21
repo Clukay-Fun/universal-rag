@@ -362,6 +362,76 @@ POST /qa/ask
 }
 ```
 
+## 会话创建
+
+POST /chat/sessions
+
+请求示例
+```json
+{
+  "user_id": null
+}
+```
+
+响应示例
+```json
+{
+  "session_id": "0c7d1c64-4c0b-4b8b-9b58-8d0d7f3a7c5a",
+  "title": null
+}
+```
+
+## 发送消息（SSE）
+
+POST /chat/sessions/{session_id}/messages
+
+请求示例
+```json
+{
+  "content": "法律顾问费用如何支付？",
+  "top_k": 5,
+  "doc_id": 1
+}
+```
+
+SSE 事件示例
+```
+event: status
+data: {"state":"RETRIEVE","step":1,"total":3}
+
+event: status
+data: {"state":"GENERATE","step":2,"total":3}
+
+event: chunk
+data: {"content":"部分"}
+
+event: message
+data: {"role":"assistant","content":"...","citations":[{"source_id":"1","node_id":9,"score":0.75,"path":["常年法律顾问合同","第八条 法律顾问费用及其支付"]}]}
+
+event: done
+data: {"message_id": 123}
+```
+
+## 会话历史
+
+GET /chat/sessions/{session_id}/history
+
+响应示例
+```json
+{
+  "session_id": "0c7d1c64-4c0b-4b8b-9b58-8d0d7f3a7c5a",
+  "messages": [
+    {
+      "message_id": 1,
+      "role": "user",
+      "content": "法律顾问费用如何支付？",
+      "citations": [],
+      "created_at": "2026-01-20T15:00:00"
+    }
+  ]
+}
+```
+
 ## 向量检索
 
 POST /vectors/search

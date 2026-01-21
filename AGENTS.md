@@ -71,6 +71,17 @@
 - 前端/终端可实时看到执行过程
 - 简单可靠的单向推送模型
 
+## 对话会话（SSE + 持久化）
+- 会话表：chat_sessions（UUID 主键、title、message_count、时间戳）
+- 消息表：chat_messages（role/content/citations/token_count）
+- SSE 接口采用 POST：
+  - POST /chat/sessions
+  - POST /chat/sessions/{session_id}/messages  # SSE 输出
+  - GET /chat/sessions/{session_id}/history
+- SSE 事件类型：status / chunk / message / done / error
+- 历史读取：先查 20 条，再按 2000 字符阈值截断（保持消息完整）
+- 引用落库：source_id / node_id / score / path
+
 ## 开发约定（强制）
 - Python 3.11+；依赖管理：requirements.txt
 - 每个 Python 文件首行添加三引号注释

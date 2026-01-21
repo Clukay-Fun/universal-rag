@@ -59,6 +59,7 @@ AGENTS.md            Agent 协作规范
 - 迁移记录：`sql/schema_migration.sql`
 - 文档表结构：`sql/schema_documents.sql`
 - 索引策略：`sql/schema_indexes.sql`
+- 会话表结构：`sql/schema_chat.sql`
 - API 示例：`docs/examples_api.md`
 - CLI 草案：`docs/cli_typer.md`
 - 批量导入模板：`samples/enterprises.json`、`samples/performances.json`、`samples/lawyers.json`
@@ -67,6 +68,13 @@ AGENTS.md            Agent 协作规范
 ```bash
 python -m unittest discover -s tests
 ```
+
+## 对话与 SSE（规划）
+- 创建会话：POST /chat/sessions
+- 发送消息（SSE）：POST /chat/sessions/{session_id}/messages
+- 会话历史：GET /chat/sessions/{session_id}/history
+- 历史截断：先取 20 条，再按 2000 字符阈值截断
+- 引用入库字段：source_id / node_id / score / path
 
 ## 环境变量
 - `DATABASE_URL`: PostgreSQL 连接串

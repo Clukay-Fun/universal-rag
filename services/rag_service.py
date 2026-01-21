@@ -109,3 +109,89 @@ def build_answer(conn: Connection, question: str, top_k: int, doc_id: int | None
     return QAResponse(answer=answer, citations=citations)
 # endregion
 # ============================================
+
+
+# ============================================
+# region retrieve_with_context
+# ============================================
+def retrieve_with_context(
+    conn: Connection,
+    query: str,
+    history: list[dict[str, object]],
+    top_k: int,
+    doc_id: int | None,
+) -> tuple[list[tuple], list[QACitation], str]:
+    if history:
+        last_content = str(history[-1].get("content") or "")[:100]
+        context_query = f"{last_content} {query}".strip()
+    else:
+        context_query = query
+
+    hits = search_document_nodes(conn, context_query, top_k, doc_id)
+    citations: list[QACitation] = []
+    meta_cache: dict[int, tuple[str | None, str | None]] = {}
+    context_parts: list[str] = []
+
+    for hit in hits:
+        hit_doc_id = int(hit[0])
+        node_id = int(hit[1])
+        title = hit[2]
+        content = hit[3]
+        path = hit[4]
+        party_a_name = hit[5]
+        score = float(hit[7])
+
+        if hit_doc_id not in meta_cache:
+            meta_cache[hit_doc_id] = _fetch_document_meta(conn, hit_doc_id)
+        doc_title, file_name = meta_cache[hit_doc_id]
+
+        citations.append(
+            QACitation(
+                source_id=str(hit_doc_id),
+                chunk_id=node_id,
+                score=score,
+                source_title=doc_title or title,
+                file_name=file_name,
+                path=path,
+                party_a_name=party_a_name,
+            )
+        )
+
+        context_parts.append(
+            "\n".join(
+                [
+                    f"[Source {hit_doc_id}:{node_id}]",
+                    f"Title: {title}",
+                    f"Path: {' > '.join(path)}",
+                    f"Content: {content}",
+                ]
+            )
+        )
+
+    context_block = "\n\n".join(context_parts)
+    return hits, citations, context_block
+# endregion
+# ============================================
+
+
+# ============================================
+# region generate_answer
+# ============================================
+def generate_answer(question: str, context_block: str, history_text: str) -> str:
+    prompt = (
+        "你是一个基于文档的问答助手。根据提供的上下文回答问题，"
+        "如果上下文中没有相关信息，请诚实说明。\n\n"
+        f"历史对话：\n{history_text}\n\n"
+        f"参考文档：\n{context_block}\n\n"
+        f"问题：{question}"
+    )
+
+    response = chat(
+        [
+            {"role": "system", "content": "Answer in Chinese."},
+            {"role": "user", "content": prompt},
+        ]
+    )
+    return response.content or ""
+# endregion
+# ============================================
