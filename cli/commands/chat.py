@@ -92,6 +92,36 @@ def _get_json_list(url: str) -> list[dict[str, str | int | None]]:
 
 
 # ============================================
+# region _format_citation_line
+# ============================================
+def _format_citation_line(index: int, citation: dict[str, object]) -> str:
+    filename = citation.get("filename") or citation.get("file_name")
+    if not filename:
+        filename = citation.get("source_title") or citation.get("source_id") or "unknown"
+    preview = citation.get("preview")
+    preview_text = None
+    if isinstance(preview, str):
+        preview_text = preview.strip()
+    score_value = citation.get("score")
+    score_text = None
+    if isinstance(score_value, (int, float)):
+        score_text = f"{float(score_value):.2f}"
+    elif isinstance(score_value, str):
+        try:
+            score_text = f"{float(score_value):.2f}"
+        except ValueError:
+            score_text = None
+    parts = [f"[{index}] {filename}"]
+    if preview_text:
+        parts.append(f'"{preview_text}"')
+    if score_text:
+        parts.append(f"({score_text})")
+    return " ".join(parts)
+# endregion
+# ============================================
+
+
+# ============================================
 # region _iter_sse
 # ============================================
 def _iter_sse(response) -> Iterable[tuple[str, str]]:
@@ -152,10 +182,9 @@ def _send_sse_message(
                 citations = payload.get("citations", [])
                 if isinstance(citations, list) and citations:
                     typer.echo("Citations:")
-                    for cite in citations:
-                        typer.echo(
-                            f"- {cite.get('source_id')}:{cite.get('node_id')} score={cite.get('score')}"
-                        )
+                    for index, cite in enumerate(citations, start=1):
+                        if isinstance(cite, dict):
+                            typer.echo(_format_citation_line(index, cite))
             elif event == "error":
                 payload = json.loads(data)
                 typer.echo(f"Error: {payload.get('code')}: {payload.get('message')}")

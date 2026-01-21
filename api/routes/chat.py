@@ -17,6 +17,7 @@ from fastapi.responses import StreamingResponse
 
 from db.connection import get_connection, get_database_url
 from schemas.chat import (
+    ChatCitation,
     ChatHistoryResponse,
     ChatMessageItem,
     ChatMessageRequest,
@@ -46,6 +47,18 @@ def _sse_event(event: str, data: dict[str, object]) -> str:
 
 
 # ============================================
+# region _build_preview
+# ============================================
+def _build_preview(text: str, limit: int = 50) -> str:
+    compact = " ".join(text.split())
+    if len(compact) <= limit:
+        return compact
+    return f"{compact[:limit]}..."
+# endregion
+# ============================================
+
+
+# ============================================
 # region list_chat_sessions
 # ============================================
 @router.get("/sessions", response_model=list[ChatSessionItem])
@@ -58,7 +71,23 @@ def list_chat_sessions(limit: int = 10) -> list[ChatSessionItem]:
     with get_connection(db_url) as conn:
         sessions = get_recent_sessions(conn, limit)
 
-    return [ChatSessionItem(**session) for session in sessions]
+    items: list[ChatSessionItem] = []
+    for session in sessions:
+        raw_session_id = session.get("session_id")
+        session_id = str(raw_session_id) if raw_session_id is not None else ""
+        title = session.get("title")
+        message_count = session.get("message_count")
+        updated_at = session.get("updated_at")
+        message_count_value = message_count if isinstance(message_count, int) else 0
+        items.append(
+            ChatSessionItem(
+                session_id=session_id,
+                title=str(title) if isinstance(title, str) else None,
+                message_count=message_count_value,
+                updated_at=str(updated_at) if updated_at is not None else None,
+            )
+        )
+    return items
 # endregion
 # ============================================
 
@@ -93,16 +122,30 @@ def get_chat_history(session_id: str) -> ChatHistoryResponse:
     with get_connection(db_url) as conn:
         history = get_recent_history(conn, session_id, limit=20)
 
-    messages = [
-        ChatMessageItem(
-            message_id=int(item["message_id"]),
-            role=str(item["role"]),
-            content=str(item["content"]),
-            citations=item.get("citations", []),
-            created_at=str(item.get("created_at")),
+    messages: list[ChatMessageItem] = []
+    for item in history:
+        citations = item.get("citations", [])
+        raw_message_id = item.get("message_id")
+        if isinstance(raw_message_id, int):
+            message_id = raw_message_id
+        elif isinstance(raw_message_id, str) and raw_message_id.isdigit():
+            message_id = int(raw_message_id)
+        else:
+            message_id = 0
+        citation_items: list[ChatCitation] = []
+        if isinstance(citations, list):
+            for cite in citations:
+                if isinstance(cite, dict):
+                    citation_items.append(ChatCitation(**cite))
+        messages.append(
+            ChatMessageItem(
+                message_id=message_id,
+                role=str(item.get("role") or ""),
+                content=str(item.get("content") or ""),
+                citations=citation_items,
+                created_at=str(item.get("created_at")),
+            )
         )
-        for item in history
-    ]
 
     return ChatHistoryResponse(session_id=session_id, messages=messages)
 # endregion
@@ -135,7 +178,7 @@ async def send_chat_message(session_id: str, request: Request) -> StreamingRespo
             history_text = history_text.strip()
 
             yield _sse_event("status", {"state": "RETRIEVE", "step": 1, "total": 3})
-            _, citations, context_block = retrieve_with_context(
+            hits, citations, context_block = retrieve_with_context(
                 conn, payload.content, truncated, payload.top_k, payload.doc_id
             )
 
@@ -146,15 +189,29 @@ async def send_chat_message(session_id: str, request: Request) -> StreamingRespo
             for i in range(0, len(answer), chunk_size):
                 yield _sse_event("chunk", {"content": answer[i : i + chunk_size]})
 
-            citations_payload = [
-                {
-                    "source_id": c.source_id,
-                    "node_id": c.chunk_id,
-                    "score": c.score,
-                    "path": c.path,
-                }
-                for c in citations
-            ]
+            preview_map: dict[tuple[int, int], str] = {}
+            for hit in hits:
+                hit_doc_id = int(hit[0])
+                node_id = int(hit[1])
+                content = str(hit[3] or "")
+                preview_map[(hit_doc_id, node_id)] = _build_preview(content)
+
+            citations_payload = []
+            for cite in citations:
+                key = (int(cite.source_id), int(cite.chunk_id))
+                filename = cite.file_name or cite.source_title
+                citations_payload.append(
+                    {
+                        "document_id": cite.source_id,
+                        "filename": filename,
+                        "chunk_index": cite.chunk_id,
+                        "preview": preview_map.get(key),
+                        "score": cite.score,
+                        "source_id": cite.source_id,
+                        "node_id": cite.chunk_id,
+                        "path": cite.path,
+                    }
+                )
             message_id = append_message(
                 conn,
                 session_id,
