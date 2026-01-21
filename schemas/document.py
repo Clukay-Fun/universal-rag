@@ -51,3 +51,34 @@ class DocumentParseResponse(BaseModel):
     stats: DocumentParseStats
 
     model_config = ConfigDict(extra="forbid")
+
+
+class DocumentStructureResponse(BaseModel):
+    """
+    文档结构化结果响应
+    """
+
+    doc_id: int
+    model_name: str | None
+    payload: dict[str, object] | None
+    raw_text: str | None
+    error: str | None
+    created_at: str | None
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class DocumentTreeNode(BaseModel):
+    """
+    文档树节点
+    """
+
+    title: str
+    level: int
+    content: str
+    children: list["DocumentTreeNode"] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+DocumentTreeNode.model_rebuild()

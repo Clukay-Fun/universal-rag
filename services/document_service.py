@@ -116,37 +116,59 @@ def _extract_json_text(text: str) -> str:
 # ============================================
 def _build_nodes_from_structure(payload: dict[str, object]) -> list[DocumentNode] | None:
     nodes_value = payload.get("nodes")
-    if not isinstance(nodes_value, list) or not nodes_value:
-        return None
-
     nodes: list[DocumentNode] = []
-    for index, item in enumerate(nodes_value, start=1):
-        if not isinstance(item, dict):
-            continue
-        node_id_value = item.get("node_id")
-        try:
-            node_id = int(node_id_value) if node_id_value is not None else index
-        except (TypeError, ValueError):
-            node_id = index
 
-        parent_id = item.get("parent_id")
-        if parent_id in ("", "null"):
-            parent_id = None
-        if parent_id is not None:
+    def parse_flat_nodes(items: list[object]) -> None:
+        for index, item in enumerate(items, start=1):
+            if not isinstance(item, dict):
+                continue
+            node_id_value = item.get("node_id")
             try:
-                parent_id = int(parent_id)
+                node_id = int(node_id_value) if node_id_value is not None else index
             except (TypeError, ValueError):
+                node_id = index
+
+            parent_id = item.get("parent_id")
+            if parent_id in ("", "null"):
                 parent_id = None
+            if parent_id is not None:
+                try:
+                    parent_id = int(parent_id)
+                except (TypeError, ValueError):
+                    parent_id = None
 
-        level_value = item.get("level")
+            level_value = item.get("level")
+            try:
+                level = int(level_value) if level_value is not None else 1
+            except (TypeError, ValueError):
+                level = 1
+
+            title = item.get("title")
+            title = str(title) if title is not None else "Section"
+            content = item.get("content")
+            content = str(content) if content is not None else ""
+
+            nodes.append(
+                DocumentNode(
+                    node_id=node_id,
+                    parent_id=parent_id,
+                    level=level,
+                    title=title,
+                    content=content,
+                )
+            )
+
+    def parse_tree(node_data: dict[str, object], parent_id: int | None, level_hint: int) -> None:
+        node_id = len(nodes) + 1
+        level_value = node_data.get("level")
         try:
-            level = int(level_value) if level_value is not None else 1
+            level = int(level_value) if level_value is not None else level_hint
         except (TypeError, ValueError):
-            level = 1
+            level = level_hint
 
-        title = item.get("title")
+        title = node_data.get("title")
         title = str(title) if title is not None else "Section"
-        content = item.get("content")
+        content = node_data.get("content")
         content = str(content) if content is not None else ""
 
         nodes.append(
@@ -158,6 +180,17 @@ def _build_nodes_from_structure(payload: dict[str, object]) -> list[DocumentNode
                 content=content,
             )
         )
+
+        children = node_data.get("children")
+        if isinstance(children, list):
+            for child in children:
+                if isinstance(child, dict):
+                    parse_tree(child, node_id, level + 1)
+
+    if isinstance(nodes_value, list) and nodes_value:
+        parse_flat_nodes(nodes_value)
+    elif isinstance(payload.get("title"), str):
+        parse_tree(payload, None, 0)
 
     return nodes or None
 # endregion

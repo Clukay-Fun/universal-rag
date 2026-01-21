@@ -14,7 +14,8 @@ from pathlib import Path
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
 from db.connection import get_connection, get_database_url
-from schemas.document import DocumentParseResponse
+from schemas.document import DocumentParseResponse, DocumentStructureResponse, DocumentTreeNode
+from services.document_query_service import get_document_structure, get_document_tree
 from services.document_service import parse_document
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -78,5 +79,53 @@ def parse_document_endpoint(
     finally:
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
+# endregion
+# ============================================
+
+
+# ============================================
+# region get_document_structure_endpoint
+# ============================================
+@router.get("/{doc_id}/structure", response_model=DocumentStructureResponse)
+def get_document_structure_endpoint(doc_id: int) -> DocumentStructureResponse:
+    """
+    获取结构化结果
+
+    参数:
+        doc_id: 文档ID
+    返回:
+        结构化响应
+    """
+
+    db_url = get_database_url()
+    with get_connection(db_url) as conn:
+        result = get_document_structure(conn, doc_id)
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="structure not found")
+    return result
+# endregion
+# ============================================
+
+
+# ============================================
+# region get_document_tree_endpoint
+# ============================================
+@router.get("/{doc_id}/tree", response_model=DocumentTreeNode)
+def get_document_tree_endpoint(doc_id: int) -> DocumentTreeNode:
+    """
+    获取文档节点树
+
+    参数:
+        doc_id: 文档ID
+    返回:
+        文档树
+    """
+
+    db_url = get_database_url()
+    with get_connection(db_url) as conn:
+        result = get_document_tree(conn, doc_id)
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="document not found")
+    return result
 # endregion
 # ============================================

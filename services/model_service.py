@@ -69,15 +69,13 @@ def structure_document(markdown: str, nodes: list[dict[str, Any]] | None = None)
     client = _get_client()
     schema_hint = (
         "Output JSON only. Schema:\n"
-        "{\"nodes\": ["
-        "{\"node_id\": 1, \"parent_id\": null, \"level\": 1, "
-        "\"title\": \"...\", \"content\": \"...\"}"
-        "]}.\n"
+        "{\"title\": \"...\", \"level\": 0, \"content\": \"...\", "
+        "\"children\": [{...}]}\n"
         "Rules:\n"
-        "- node_id is a 1-based integer sequence.\n"
-        "- parent_id references node_id or null.\n"
-        "- level is heading depth (1-6).\n"
-        "- content holds the paragraph text.\n"
+        "- children is a list of nodes with the same schema.\n"
+        "- level increases by 1 for each nesting.\n"
+        "- content contains full text for that section.\n"
+        "- If no content, set content to empty string.\n"
         "- Return valid JSON, no markdown or code fences."
     )
 

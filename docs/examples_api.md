@@ -239,3 +239,38 @@ DELETE /lawyers/{record_id}
   "deleted": true
 }
 ```
+
+## 文档结构化结果
+
+GET /documents/{doc_id}/structure
+
+响应示例
+```json
+{
+  "doc_id": 1,
+  "model_name": "Qwen/Qwen3-8B",
+  "payload": {
+    "title": "文档标题",
+    "level": 0,
+    "content": "",
+    "children": []
+  },
+  "raw_text": "{...}",
+  "error": null,
+  "created_at": "2026-01-20T14:48:02.817982"
+}
+```
+
+## 文档节点树
+
+GET /documents/{doc_id}/tree
+
+响应示例
+```json
+{
+  "title": "文档标题",
+  "level": 0,
+  "content": "",
+  "children": []
+}
+```
