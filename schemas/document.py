@@ -45,6 +45,9 @@ class DocumentParseResponse(BaseModel):
     doc_id: int | None = Field(None, description="文档ID")
     title: str | None = Field(None, description="文档标题")
     file_name: str | None = Field(None, description="文件名")
+    party_a_name: str | None = Field(None, description="甲方名称")
+    party_a_credit_code: str | None = Field(None, description="甲方统一社会信用代码")
+    party_a_source: str | None = Field(None, description="甲方来源")
     markdown: str | None = Field(None, description="Markdown 内容")
     structure_result: str | None = Field(None, description="结构化结果")
     structure_error: str | None = Field(None, description="结构化错误")
@@ -96,6 +99,8 @@ class DocumentNodeSearchResponse(BaseModel):
     title: str
     content: str
     path: list[str]
+    party_a_name: str | None = None
+    party_a_credit_code: str | None = None
     score: float | None = None
 
     model_config = ConfigDict(extra="forbid")

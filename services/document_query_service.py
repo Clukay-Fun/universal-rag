@@ -127,13 +127,18 @@ def get_document_tree(conn: Connection, doc_id: int) -> DocumentTreeNode | None:
 
     title_row = conn.execute(
         """
-        SELECT title FROM documents WHERE doc_id = %s
+        SELECT title, party_a_name FROM documents WHERE doc_id = %s
         """,
         (doc_id,),
     ).fetchone()
     root_title = title_row[0] if title_row and title_row[0] else "Document"
+    party_name = title_row[1] if title_row else None
 
-    root = DocumentTreeNode(title=root_title, level=0, content="", children=[], path=[root_title])
+    root_path = [root_title]
+    if party_name:
+        root_path.append(party_name)
+
+    root = DocumentTreeNode(title=root_title, level=0, content="", children=[], path=root_path)
     for root_id in root_ids:
         root.children.append(nodes[root_id])
     return root
@@ -168,24 +173,25 @@ def search_document_nodes(
     params: list[object] = []
 
     if query:
-        filters.append("to_tsvector('simple', content) @@ plainto_tsquery('simple', %s)")
+        filters.append("to_tsvector('simple', n.content) @@ plainto_tsquery('simple', %s)")
         params.append(query)
 
     if title:
-        filters.append("title ILIKE %s")
+        filters.append("n.title ILIKE %s")
         params.append(f"%{title}%")
 
     if path:
-        filters.append("path @> %s::text[]")
+        filters.append("n.path @> %s::text[]")
         params.append([path])
 
     where_clause = " AND ".join(filters) if filters else "TRUE"
     sql = (
-        "SELECT doc_id, node_id, title, content, path, "
-        "ts_rank(to_tsvector('simple', content), plainto_tsquery('simple', %s)) AS score "
-        "FROM document_nodes WHERE "
+        "SELECT n.doc_id, n.node_id, n.title, n.content, n.path, "
+        "d.party_a_name, d.party_a_credit_code, "
+        "ts_rank(to_tsvector('simple', n.content), plainto_tsquery('simple', %s)) AS score "
+        "FROM document_nodes n JOIN documents d ON d.doc_id = n.doc_id WHERE "
         f"{where_clause} "
-        "ORDER BY score DESC NULLS LAST, node_id "
+        "ORDER BY score DESC NULLS LAST, n.node_id "
         "LIMIT %s"
     )
 
@@ -203,7 +209,9 @@ def search_document_nodes(
                 title=row[2] or "",
                 content=row[3] or "",
                 path=list(row[4]) if row[4] is not None else [],
-                score=float(row[5]) if row[5] is not None else None,
+                party_a_name=row[5],
+                party_a_credit_code=row[6],
+                score=float(row[7]) if row[7] is not None else None,
             )
         )
     return results

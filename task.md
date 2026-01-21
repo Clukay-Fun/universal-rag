@@ -15,9 +15,9 @@
 - [x] 节点路径注入（Path/Lineage）
 
 ## 向量化与检索
-- [ ] BGE-M3 向量化任务
-- [ ] 向量入库与 ivfflat 索引
-- [ ] pgvector 相似度检索接口
+- [x] BGE-M3 向量化任务
+- [x] 向量入库与 ivfflat 索引
+- [x] pgvector 相似度检索接口
 - [x] 模型调用配置接入
 
 ## RAG 问答

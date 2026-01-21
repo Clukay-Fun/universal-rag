@@ -289,7 +289,62 @@ GET /documents/nodes/search?query=法律顾问&title=第三条&path=常年法律
     "title": "第三条 法律顾问工作范围",
     "content": "...",
     "path": ["常年法律顾问合同", "第三条 法律顾问工作范围"],
+    "party_a_name": "深圳市深汕特别合作区深燃天然气有限有限公司",
+    "party_a_credit_code": "91320101TEST00001",
     "score": 0.42
   }
 ]
+```
+
+## 文档向量化
+
+POST /vectors/document-nodes
+
+请求示例
+```json
+{
+  "doc_id": 1,
+  "batch_size": 16
+}
+```
+
+响应示例
+```json
+{
+  "doc_id": 1,
+  "processed": 10,
+  "updated": 10
+}
+```
+
+## 向量检索
+
+POST /vectors/search
+
+请求示例
+```json
+{
+  "query_text": "法律顾问费用",
+  "top_k": 5,
+  "doc_id": 1
+}
+```
+
+响应示例
+```json
+{
+  "query_text": "法律顾问费用",
+  "hits": [
+    {
+      "doc_id": 1,
+      "node_id": 23,
+      "title": "第八条 法律顾问费用及其支付",
+      "content": "...",
+      "path": ["常年法律顾问合同", "第八条 法律顾问费用及其支付"],
+      "party_a_name": "深圳市深汕特别合作区深燃天然气有限有限公司",
+      "party_a_credit_code": "91320101TEST00001",
+      "score": 0.12
+    }
+  ]
+}
 ```

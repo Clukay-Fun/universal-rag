@@ -2,6 +2,9 @@ CREATE TABLE IF NOT EXISTS documents (
     doc_id BIGSERIAL PRIMARY KEY,
     title TEXT,
     file_name TEXT,
+    party_a_name TEXT,
+    party_a_credit_code TEXT,
+    party_a_source TEXT,
     created_at TIMESTAMP WITHOUT TIME ZONE
 );
 
@@ -13,6 +16,7 @@ CREATE TABLE IF NOT EXISTS document_nodes (
     title TEXT,
     content TEXT,
     path TEXT[],
+    embedding VECTOR(1024),
     structure_model TEXT,
     structure_payload JSONB,
     structure_raw TEXT,

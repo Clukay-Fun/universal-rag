@@ -20,7 +20,7 @@ from psycopg import Connection
 
 from config.settings import get_settings
 from schemas.document import DocumentNode, DocumentParseResponse, DocumentParseStats
-from services.model_service import structure_document
+from services.model_service import extract_json, structure_document
 
 HEADING_PATTERN = re.compile(r"^(#{1,6})\s+(.*)$")
 
@@ -46,9 +46,43 @@ def convert_to_markdown(file_path: str) -> tuple[str, str | None]:
 
 
 # ============================================
+# region extract_party_a
+# ============================================
+def extract_party_a(markdown: str, file_name: str | None) -> tuple[str | None, str | None]:
+    prompt = (
+        "从合同文本中抽取甲方全称，仅返回JSON。"
+        "格式: {\"party_a_name\": \"...\"}. "
+        "如果无法识别，返回空字符串。"
+    )
+    try:
+        response = extract_json(f"{prompt}\n\n{markdown}")
+        if response.content:
+            json_text = _extract_json_text(response.content)
+            payload = json.loads(json_text)
+            if isinstance(payload, dict):
+                name = str(payload.get("party_a_name") or "").strip()
+                if name:
+                    return name, "content"
+    except Exception:
+        pass
+
+    if file_name:
+        name = Path(file_name).stem.strip()
+        return (name if name else None), "filename"
+
+    return None, None
+# endregion
+# ============================================
+
+
+# ============================================
 # region _populate_node_paths
 # ============================================
-def _populate_node_paths(nodes: list[DocumentNode]) -> None:
+def _populate_node_paths(
+    nodes: list[DocumentNode],
+    doc_title: str | None,
+    party_a_name: str | None,
+) -> None:
     node_map = {node.node_id: node for node in nodes}
     cache: dict[int, list[str]] = {}
 
@@ -66,7 +100,17 @@ def _populate_node_paths(nodes: list[DocumentNode]) -> None:
         return path
 
     for node in nodes:
-        node.path = build_path(node.node_id)
+        base_path = build_path(node.node_id)
+        if doc_title and base_path and base_path[0] == doc_title:
+            base_path = base_path[1:]
+
+        prefix: list[str] = []
+        if doc_title:
+            prefix.append(doc_title)
+        if party_a_name:
+            prefix.append(party_a_name)
+
+        node.path = prefix + base_path
 # endregion
 # ============================================
 
@@ -327,6 +371,9 @@ def persist_document(
     conn: Connection,
     title: str | None,
     file_name: str | None,
+    party_a_name: str | None,
+    party_a_credit_code: str | None,
+    party_a_source: str | None,
     nodes: list[DocumentNode],
 ) -> int:
     """
@@ -344,11 +391,18 @@ def persist_document(
     now = datetime.utcnow()
     row = conn.execute(
         """
-        INSERT INTO documents (title, file_name, created_at)
-        VALUES (%s, %s, %s)
+        INSERT INTO documents (
+            title,
+            file_name,
+            party_a_name,
+            party_a_credit_code,
+            party_a_source,
+            created_at
+        )
+        VALUES (%s, %s, %s, %s, %s, %s)
         RETURNING doc_id
         """,
-        (title, file_name, now),
+        (title, file_name, party_a_name, party_a_credit_code, party_a_source, now),
     ).fetchone()
 
     if not row:
@@ -425,6 +479,9 @@ def parse_document(
     structure_result = None
     structure_error = None
     structure_payload: dict[str, object] | None = None
+    party_a_name = None
+    party_a_source = None
+    party_a_credit_code = None
 
     if use_model_structure:
         try:
@@ -450,12 +507,33 @@ def parse_document(
         except Exception as exc:
             structure_error = str(exc)
 
-    _populate_node_paths(nodes)
+    party_a_name, party_a_source = extract_party_a(markdown, file_name)
+
+    if party_a_name and conn is not None:
+        row = conn.execute(
+            """
+            SELECT credit_code FROM enterprises WHERE company_name = %s
+            """,
+            (party_a_name,),
+        ).fetchone()
+        if row:
+            party_a_credit_code = row[0]
+
+    doc_title = title or Path(file_path).stem
+    _populate_node_paths(nodes, doc_title, party_a_name)
 
     if persist:
         if conn is None:
             raise RuntimeError("Database connection is required for persistence")
-        doc_id = persist_document(conn, title or Path(file_path).stem, file_name, nodes)
+        doc_id = persist_document(
+            conn,
+            doc_title,
+            file_name,
+            party_a_name,
+            party_a_credit_code,
+            party_a_source,
+            nodes,
+        )
         persist_structure(
             conn,
             doc_id,
@@ -475,6 +553,9 @@ def parse_document(
         doc_id=doc_id,
         title=title,
         file_name=file_name,
+        party_a_name=party_a_name,
+        party_a_credit_code=party_a_credit_code,
+        party_a_source=party_a_source,
         markdown=markdown if include_markdown else None,
         structure_result=structure_result,
         structure_error=structure_error,
