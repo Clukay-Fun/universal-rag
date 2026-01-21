@@ -23,6 +23,7 @@
 ## RAG 问答
 - [x] 检索增强生成链路
 - [x] 引用格式规范输出（source_id/chunk_id/score）
+- [x] 引用展示优化（filename/preview/score）
 
 ## 业绩管理
 - [x] 合同信息提取提示词管理
@@ -46,6 +47,7 @@
 - [x] SSE 会话消息接口（POST /chat/sessions/{id}/messages）
 - [x] 会话历史截断（20 条 + 2000 字符）
 - [x] 引用写入会话消息（source_id/node_id/score/path）
+- [x] 会话列表接口（GET /chat/sessions?limit=10）
 - [x] CLI chat 交互模式
 
 ## FastAPI
@@ -63,4 +65,6 @@
 - [x] 律师插入/查询命令
 - [x] 企业/业绩/律师删除命令
 - [x] CLI 增加批量导入与导出
+- [x] CLI chat --list 会话列表
+- [x] CLI 读取 .env 覆盖环境变量
 - [x] 单测与示例脚本

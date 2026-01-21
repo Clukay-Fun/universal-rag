@@ -4,7 +4,7 @@
 ## 项目定位
 - 目标：通用性 RAG 知识库（后端 + 终端对话）
 - 关键体验：SSE 实时展示 Agent 状态
-- 默认服务地址：http://localhost:8000/
+- 默认服务地址：http://localhost:8001/
 
 ## 模块与功能
 - 文档解析：Word -> MarkItDown，保留结构
@@ -86,7 +86,8 @@
   - GET /chat/sessions/{session_id}/history
 - SSE 事件类型：status / chunk / message / done / error
 - 历史读取：先查 20 条，再按 2000 字符阈值截断（保持消息完整）
-- 引用落库：source_id / node_id / score / path
+- 引用落库：document_id / filename / chunk_index / preview / score / path
+- CLI 展示引用建议：filename + preview + score（不展示 chunk_index）
 
 ## 开发约定（强制）
 - Python 3.11+；依赖管理：requirements.txt

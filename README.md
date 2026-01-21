@@ -30,7 +30,7 @@ psql "${DATABASE_URL}" -f sql/schema_documents.sql
 
 4) 启动 FastAPI
 ```bash
-uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn api.main:app --host 0.0.0.0 --port 8001 --reload
 ```
 
 ## CLI 使用（Typer）
@@ -40,6 +40,11 @@ python -m cli.main --db-url ${DATABASE_URL} enterprise insert \
   --credit-code 91320101MA1XXXXXXX \
   --company-name "xx市xx研究院有限公司" \
   --json
+```
+
+查看会话列表
+```bash
+python -m cli.main chat --list
 ```
 
 完整示例见 `docs/cli_examples.md`。
@@ -75,7 +80,7 @@ python -m unittest discover -s tests
 - 发送消息（SSE）：POST /chat/sessions/{session_id}/messages
 - 会话历史：GET /chat/sessions/{session_id}/history
 - 历史截断：先取 20 条，再按 2000 字符阈值截断
-- 引用入库字段：source_id / node_id / score / path
+- 引用入库字段：document_id / filename / chunk_index / preview / score / path
 
 ## 环境变量
 - `DATABASE_URL`: PostgreSQL 连接串

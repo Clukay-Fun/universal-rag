@@ -422,7 +422,7 @@ event: chunk
 data: {"content":"部分"}
 
 event: message
-data: {"role":"assistant","content":"...","citations":[{"source_id":"1","node_id":9,"score":0.75,"path":["常年法律顾问合同","第八条 法律顾问费用及其支付"]}]}
+data: {"role":"assistant","content":"...","citations":[{"document_id":"1","filename":"天然气有限公司常法合同.pdf","chunk_index":9,"preview":"法律顾问费用分两次支付...","score":0.75,"path":["常年法律顾问合同","第八条 法律顾问费用及其支付"]}]}
 
 event: done
 data: {"message_id": 123}

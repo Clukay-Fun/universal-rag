@@ -25,7 +25,7 @@ def _get_base_url(api_base: str | None) -> str:
     if api_base:
         return api_base.rstrip("/")
     host = os.getenv("FASTAPI_HOST", "127.0.0.1")
-    port = os.getenv("FASTAPI_PORT", "8000")
+    port = os.getenv("FASTAPI_PORT", "8001")
     if host == "0.0.0.0":
         host = "127.0.0.1"
     return f"http://{host}:{port}"
