@@ -71,6 +71,7 @@ python -m unittest discover -s tests
 
 ## 对话与 SSE（规划）
 - 创建会话：POST /chat/sessions
+- 会话列表：GET /chat/sessions?limit=10
 - 发送消息（SSE）：POST /chat/sessions/{session_id}/messages
 - 会话历史：GET /chat/sessions/{session_id}/history
 - 历史截断：先取 20 条，再按 2000 字符阈值截断

@@ -132,10 +132,15 @@ python -m cli.main --db-url postgresql://postgres:1234@localhost:5432/universal-
 ## 对话模式
 
 ```
-python -m cli.main chat chat
+python -m cli.main chat
 ```
 
 继续会话
 ```
-python -m cli.main chat chat --session <session_id>
+python -m cli.main chat --session <session_id>
+```
+
+列出会话
+```
+python -m cli.main chat --list
 ```

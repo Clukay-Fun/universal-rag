@@ -15,7 +15,7 @@ from urllib.request import Request, urlopen
 
 import typer
 
-app = typer.Typer(help="Chat session commands")
+app = typer.Typer(help="Chat session commands", invoke_without_command=True)
 
 
 # ============================================
@@ -54,6 +54,39 @@ def _get_json(url: str) -> dict[str, object]:
     with urlopen(request, timeout=60) as response:
         body = response.read().decode("utf-8")
     return json.loads(body) if body else {}
+# endregion
+# ============================================
+
+
+# ============================================
+# region _get_json_list
+# ============================================
+def _get_json_list(url: str) -> list[dict[str, str | int | None]]:
+    request = Request(url, method="GET")
+    with urlopen(request, timeout=60) as response:
+        body = response.read().decode("utf-8")
+    data = json.loads(body) if body else []
+    if not isinstance(data, list):
+        return []
+    sessions: list[dict[str, str | int | None]] = []
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        session_id = item.get("session_id")
+        if session_id is None:
+            continue
+        title = item.get("title")
+        message_count = item.get("message_count")
+        updated_at = item.get("updated_at")
+        sessions.append(
+            {
+                "session_id": str(session_id),
+                "title": str(title) if title is not None else None,
+                "message_count": message_count if isinstance(message_count, int) else 0,
+                "updated_at": str(updated_at) if updated_at is not None else None,
+            }
+        )
+    return sessions
 # endregion
 # ============================================
 
@@ -113,13 +146,11 @@ def _send_sse_message(
             elif event == "chunk":
                 payload = json.loads(data)
                 typer.echo(payload.get("content", ""), nl=False)
-                typer.echo("", nl=False)
             elif event == "message":
                 payload = json.loads(data)
-                typer.echo("\n")
-                typer.echo(payload.get("content", ""))
+                typer.echo("")
                 citations = payload.get("citations", [])
-                if citations:
+                if isinstance(citations, list) and citations:
                     typer.echo("Citations:")
                     for cite in citations:
                         typer.echo(
@@ -130,7 +161,30 @@ def _send_sse_message(
                 typer.echo(f"Error: {payload.get('code')}: {payload.get('message')}")
             elif event == "done":
                 payload = json.loads(data)
-                typer.echo(f"Done: message_id={payload.get('message_id')}")
+                message_id = payload.get("message_id")
+                if message_id is not None:
+                    typer.echo(f"message_id={message_id}")
+# endregion
+# ============================================
+
+
+# ============================================
+# region _print_sessions
+# ============================================
+def _print_sessions(base_url: str, limit: int = 10) -> None:
+    url = f"{base_url}/chat/sessions?limit={limit}"
+    sessions = _get_json_list(url)
+    if not sessions:
+        typer.echo("No sessions found")
+        return
+    for session in sessions:
+        session_id = session.get("session_id")
+        title = session.get("title")
+        message_count = session.get("message_count")
+        updated_at = session.get("updated_at")
+        typer.echo(
+            f"{session_id} | title={title} | messages={message_count} | updated_at={updated_at}"
+        )
 # endregion
 # ============================================
 
@@ -153,10 +207,11 @@ def _print_history(base_url: str, session_id: str) -> None:
 # ============================================
 # region chat
 # ============================================
-@app.command("chat")
+@app.callback()
 def chat(
     api_base: str | None = typer.Option(None, help="API Base URL"),
-    session_id: str | None = typer.Option(None, help="会话ID"),
+    list_sessions: bool = typer.Option(False, "--list", help="列出会话"),
+    session_id: str | None = typer.Option(None, "--session", help="会话ID"),
     user_id: str | None = typer.Option(None, help="用户ID"),
     doc_id: int | None = typer.Option(None, help="文档ID"),
     top_k: int = typer.Option(5, help="召回数量"),
@@ -166,6 +221,10 @@ def chat(
     """
 
     base_url = _get_base_url(api_base)
+
+    if list_sessions:
+        _print_sessions(base_url)
+        return
 
     if not session_id:
         payload = _post_json(f"{base_url}/chat/sessions", {"user_id": user_id})

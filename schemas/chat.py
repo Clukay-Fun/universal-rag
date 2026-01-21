@@ -31,6 +31,19 @@ class ChatSessionCreateResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class ChatSessionItem(BaseModel):
+    """
+    会话列表项
+    """
+
+    session_id: str
+    title: str | None
+    message_count: int
+    updated_at: str | None
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class ChatMessageRequest(BaseModel):
     """
     发送消息请求

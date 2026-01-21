@@ -36,6 +36,36 @@ def create_session(conn: Connection, user_id: str | None) -> tuple[str, str | No
 
 
 # ============================================
+# region get_recent_sessions
+# ============================================
+def get_recent_sessions(conn: Connection, limit: int = 10) -> list[dict[str, object]]:
+    rows = conn.execute(
+        """
+        SELECT session_id, title, message_count, updated_at
+        FROM chat_sessions
+        ORDER BY updated_at DESC NULLS LAST
+        LIMIT %s
+        """,
+        (limit,),
+    ).fetchall()
+
+    result = []
+    for row in rows:
+        updated_at = row[3].isoformat() if row[3] else None
+        result.append(
+            {
+                "session_id": str(row[0]),
+                "title": row[1],
+                "message_count": int(row[2] or 0),
+                "updated_at": updated_at,
+            }
+        )
+    return result
+# endregion
+# ============================================
+
+
+# ============================================
 # region append_message
 # ============================================
 def append_message(

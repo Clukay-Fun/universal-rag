@@ -20,12 +20,14 @@ from schemas.chat import (
     ChatHistoryResponse,
     ChatMessageItem,
     ChatMessageRequest,
+    ChatSessionItem,
     ChatSessionCreateRequest,
     ChatSessionCreateResponse,
 )
 from services.chat_service import (
     append_message,
     create_session,
+    get_recent_sessions,
     get_recent_history,
     truncate_history_by_chars,
 )
@@ -39,6 +41,24 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 # ============================================
 def _sse_event(event: str, data: dict[str, object]) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+# endregion
+# ============================================
+
+
+# ============================================
+# region list_chat_sessions
+# ============================================
+@router.get("/sessions", response_model=list[ChatSessionItem])
+def list_chat_sessions(limit: int = 10) -> list[ChatSessionItem]:
+    """
+    列出最近会话
+    """
+
+    db_url = get_database_url()
+    with get_connection(db_url) as conn:
+        sessions = get_recent_sessions(conn, limit)
+
+    return [ChatSessionItem(**session) for session in sessions]
 # endregion
 # ============================================
 

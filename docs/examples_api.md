@@ -381,6 +381,22 @@ POST /chat/sessions
 }
 ```
 
+## 会话列表
+
+GET /chat/sessions?limit=10
+
+响应示例
+```json
+[
+  {
+    "session_id": "0c7d1c64-4c0b-4b8b-9b58-8d0d7f3a7c5a",
+    "title": "法律顾问费用",
+    "message_count": 2,
+    "updated_at": "2026-01-20T15:01:00"
+  }
+]
+```
+
 ## 发送消息（SSE）
 
 POST /chat/sessions/{session_id}/messages
