@@ -271,6 +271,25 @@ GET /documents/{doc_id}/tree
   "title": "文档标题",
   "level": 0,
   "content": "",
-  "children": []
+  "children": [],
+  "path": ["文档标题"]
 }
+```
+
+## 文档节点搜索
+
+GET /documents/nodes/search?query=法律顾问&title=第三条&path=常年法律顾问合同
+
+响应示例
+```json
+[
+  {
+    "doc_id": 1,
+    "node_id": 23,
+    "title": "第三条 法律顾问工作范围",
+    "content": "...",
+    "path": ["常年法律顾问合同", "第三条 法律顾问工作范围"],
+    "score": 0.42
+  }
+]
 ```

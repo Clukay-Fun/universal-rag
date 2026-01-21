@@ -15,3 +15,7 @@ CREATE INDEX IF NOT EXISTS performances_sign_date_norm_idx ON performances(sign_
 CREATE INDEX IF NOT EXISTS performances_amount_idx ON performances(amount);
 CREATE INDEX IF NOT EXISTS performances_embedding_idx ON performances
     USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+
+CREATE INDEX IF NOT EXISTS document_nodes_path_gin_idx ON document_nodes USING gin (path);
+CREATE INDEX IF NOT EXISTS document_nodes_title_idx ON document_nodes(title);
+CREATE INDEX IF NOT EXISTS document_nodes_content_idx ON document_nodes USING gin (to_tsvector('simple', content));

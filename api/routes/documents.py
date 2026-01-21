@@ -14,8 +14,17 @@ from pathlib import Path
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
 from db.connection import get_connection, get_database_url
-from schemas.document import DocumentParseResponse, DocumentStructureResponse, DocumentTreeNode
-from services.document_query_service import get_document_structure, get_document_tree
+from schemas.document import (
+    DocumentNodeSearchResponse,
+    DocumentParseResponse,
+    DocumentStructureResponse,
+    DocumentTreeNode,
+)
+from services.document_query_service import (
+    get_document_structure,
+    get_document_tree,
+    search_document_nodes,
+)
 from services.document_service import parse_document
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -127,5 +136,34 @@ def get_document_tree_endpoint(doc_id: int) -> DocumentTreeNode:
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="document not found")
     return result
+# endregion
+# ============================================
+
+
+# ============================================
+# region search_document_nodes_endpoint
+# ============================================
+@router.get("/nodes/search", response_model=list[DocumentNodeSearchResponse])
+def search_document_nodes_endpoint(
+    query: str | None = None,
+    title: str | None = None,
+    path: str | None = None,
+    limit: int = 20,
+) -> list[DocumentNodeSearchResponse]:
+    """
+    搜索文档节点
+
+    参数:
+        query: 正文查询
+        title: 标题查询
+        path: 路径匹配
+        limit: 返回数量
+    返回:
+        搜索结果
+    """
+
+    db_url = get_database_url()
+    with get_connection(db_url) as conn:
+        return search_document_nodes(conn, query, title, path, limit)
 # endregion
 # ============================================

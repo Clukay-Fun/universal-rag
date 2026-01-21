@@ -13,7 +13,11 @@ from datetime import datetime
 
 from psycopg import Connection
 
-from schemas.document import DocumentStructureResponse, DocumentTreeNode
+from schemas.document import (
+    DocumentNodeSearchResponse,
+    DocumentStructureResponse,
+    DocumentTreeNode,
+)
 
 
 # ============================================
@@ -81,7 +85,7 @@ def get_document_tree(conn: Connection, doc_id: int) -> DocumentTreeNode | None:
 
     rows = conn.execute(
         """
-        SELECT node_id, parent_id, level, title, content
+        SELECT node_id, parent_id, level, title, content, path
         FROM document_nodes
         WHERE doc_id = %s
         ORDER BY order_index
@@ -103,6 +107,7 @@ def get_document_tree(conn: Connection, doc_id: int) -> DocumentTreeNode | None:
             level=int(row[2]) if row[2] is not None else 0,
             content=row[4] or "",
             children=[],
+            path=list(row[5]) if row[5] is not None else [],
         )
         children_map.setdefault(parent_id, []).append(node_id)
 
@@ -128,9 +133,79 @@ def get_document_tree(conn: Connection, doc_id: int) -> DocumentTreeNode | None:
     ).fetchone()
     root_title = title_row[0] if title_row and title_row[0] else "Document"
 
-    root = DocumentTreeNode(title=root_title, level=0, content="", children=[])
+    root = DocumentTreeNode(title=root_title, level=0, content="", children=[], path=[root_title])
     for root_id in root_ids:
         root.children.append(nodes[root_id])
     return root
+# endregion
+# ============================================
+
+
+# ============================================
+# region search_document_nodes
+# ============================================
+def search_document_nodes(
+    conn: Connection,
+    query: str | None,
+    title: str | None,
+    path: str | None,
+    limit: int,
+) -> list[DocumentNodeSearchResponse]:
+    """
+    搜索文档节点
+
+    参数:
+        conn: 数据库连接
+        query: 正文查询
+        title: 标题查询
+        path: 路径查询
+        limit: 返回数量
+    返回:
+        搜索结果
+    """
+
+    filters = []
+    params: list[object] = []
+
+    if query:
+        filters.append("to_tsvector('simple', content) @@ plainto_tsquery('simple', %s)")
+        params.append(query)
+
+    if title:
+        filters.append("title ILIKE %s")
+        params.append(f"%{title}%")
+
+    if path:
+        filters.append("path @> %s::text[]")
+        params.append([path])
+
+    where_clause = " AND ".join(filters) if filters else "TRUE"
+    sql = (
+        "SELECT doc_id, node_id, title, content, path, "
+        "ts_rank(to_tsvector('simple', content), plainto_tsquery('simple', %s)) AS score "
+        "FROM document_nodes WHERE "
+        f"{where_clause} "
+        "ORDER BY score DESC NULLS LAST, node_id "
+        "LIMIT %s"
+    )
+
+    params_for_rank = params.copy()
+    params_for_rank.insert(0, query or "")
+    params_for_rank.append(limit)
+
+    rows = conn.execute(sql, params_for_rank).fetchall()
+    results = []
+    for row in rows:
+        results.append(
+            DocumentNodeSearchResponse(
+                doc_id=row[0],
+                node_id=row[1],
+                title=row[2] or "",
+                content=row[3] or "",
+                path=list(row[4]) if row[4] is not None else [],
+                score=float(row[5]) if row[5] is not None else None,
+            )
+        )
+    return results
 # endregion
 # ============================================

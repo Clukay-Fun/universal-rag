@@ -78,8 +78,24 @@ class DocumentTreeNode(BaseModel):
     level: int
     content: str
     children: list["DocumentTreeNode"] = Field(default_factory=list)
+    path: list[str] = Field(default_factory=list)
 
     model_config = ConfigDict(extra="forbid")
 
 
 DocumentTreeNode.model_rebuild()
+
+
+class DocumentNodeSearchResponse(BaseModel):
+    """
+    文档节点搜索响应
+    """
+
+    doc_id: int
+    node_id: int
+    title: str
+    content: str
+    path: list[str]
+    score: float | None = None
+
+    model_config = ConfigDict(extra="forbid")
