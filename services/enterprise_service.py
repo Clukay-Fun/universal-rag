@@ -13,7 +13,12 @@ from datetime import datetime
 from psycopg import Connection
 from psycopg.errors import UniqueViolation
 
-from schemas.enterprise import EnterpriseCreate, EnterpriseResponse
+from schemas.enterprise import (
+    EnterpriseCreate,
+    EnterpriseImportError,
+    EnterpriseImportResponse,
+    EnterpriseResponse,
+)
 from services.validators import normalize_commas
 
 # ============================================
@@ -73,6 +78,86 @@ def create_enterprise(conn: Connection, data: EnterpriseCreate) -> EnterpriseRes
         raise
 
     return EnterpriseResponse(**payload)
+# endregion
+# ============================================
+
+
+# ============================================
+# region bulk_create_enterprises
+# ============================================
+def bulk_create_enterprises(
+    conn: Connection,
+    items: list[dict[str, object]],
+) -> EnterpriseImportResponse:
+    """
+    批量导入企业
+
+    参数:
+        conn: 数据库连接
+        items: 企业数据列表
+    返回:
+        导入响应
+    """
+
+    now = datetime.utcnow()
+    payloads: list[dict[str, object]] = []
+    errors: list[EnterpriseImportError] = []
+
+    for index, item in enumerate(items):
+        if not isinstance(item, dict):
+            errors.append(EnterpriseImportError(index=index, error="Each item must be an object"))
+            continue
+        credit_code = item.get("credit_code")
+        company_name = item.get("company_name")
+        if not credit_code or not company_name:
+            errors.append(
+                EnterpriseImportError(index=index, error="credit_code and company_name are required")
+            )
+            continue
+        payloads.append(
+            {
+                "credit_code": normalize_commas(str(credit_code)),
+                "company_name": company_name,
+                "business_scope": item.get("business_scope"),
+                "industry": item.get("industry"),
+                "enterprise_type": item.get("enterprise_type"),
+                "created_at": now,
+                "updated_at": now,
+            }
+        )
+
+    if payloads:
+        with conn.cursor() as cursor:
+            cursor.executemany(
+                """
+                INSERT INTO enterprises (
+                    credit_code,
+                    company_name,
+                    business_scope,
+                    industry,
+                    enterprise_type,
+                    created_at,
+                    updated_at
+                )
+                VALUES (
+                    %(credit_code)s,
+                    %(company_name)s,
+                    %(business_scope)s,
+                    %(industry)s,
+                    %(enterprise_type)s,
+                    %(created_at)s,
+                    %(updated_at)s
+                )
+                """,
+                payloads,
+            )
+        conn.commit()
+
+    return EnterpriseImportResponse(
+        inserted=len(payloads),
+        failed=len(errors),
+        errors=errors,
+    )
 # endregion
 # ============================================
 

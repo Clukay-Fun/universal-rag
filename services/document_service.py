@@ -509,17 +509,11 @@ def parse_document(
 
     party_a_name, party_a_source = extract_party_a(markdown, file_name)
 
-    if party_a_name and conn is not None:
-        row = conn.execute(
-            """
-            SELECT credit_code FROM enterprises WHERE company_name = %s
-            """,
-            (party_a_name,),
-        ).fetchone()
-        if row:
-            party_a_credit_code = row[0]
+    party_a_credit_code = None
 
-    doc_title = title or Path(file_path).stem
+    doc_title = title
+    if not doc_title or str(doc_title).startswith("tmp"):
+        doc_title = Path(file_name or file_path).stem
     _populate_node_paths(nodes, doc_title, party_a_name)
 
     if persist:
@@ -530,7 +524,7 @@ def parse_document(
             doc_title,
             file_name,
             party_a_name,
-            party_a_credit_code,
+            None,
             party_a_source,
             nodes,
         )

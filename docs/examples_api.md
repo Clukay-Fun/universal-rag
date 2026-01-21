@@ -290,7 +290,7 @@ GET /documents/nodes/search?query=法律顾问&title=第三条&path=常年法律
     "content": "...",
     "path": ["常年法律顾问合同", "第三条 法律顾问工作范围"],
     "party_a_name": "深圳市深汕特别合作区深燃天然气有限有限公司",
-    "party_a_credit_code": "91320101TEST00001",
+    "party_a_credit_code": null,
     "score": 0.42
   }
 ]
@@ -342,7 +342,7 @@ POST /vectors/search
       "content": "...",
       "path": ["常年法律顾问合同", "第八条 法律顾问费用及其支付"],
       "party_a_name": "深圳市深汕特别合作区深燃天然气有限有限公司",
-      "party_a_credit_code": "91320101TEST00001",
+      "party_a_credit_code": null,
       "score": 0.12
     }
   ]

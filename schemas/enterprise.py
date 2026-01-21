@@ -42,6 +42,29 @@ class EnterpriseResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class EnterpriseImportError(BaseModel):
+    """
+    企业导入错误
+    """
+
+    index: int
+    error: str
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class EnterpriseImportResponse(BaseModel):
+    """
+    企业导入响应
+    """
+
+    inserted: int
+    failed: int
+    errors: list[EnterpriseImportError] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class EnterpriseDeleteResponse(BaseModel):
     """
     企业删除响应
