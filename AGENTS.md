@@ -37,6 +37,12 @@
 - 避免在日志、错误信息、追踪中输出密钥或敏感字段
 - 不同环境使用不同密钥，定期轮换
 
+## 常见问题排查
+- `password authentication failed for user "postgres"`：通常是进程读取到的 `DATABASE_URL` 不是 `.env` 中的最新值。
+  - Windows/PowerShell 里若系统环境变量已设置，会覆盖 `.env`；建议在入口 `load_dotenv(override=True)` 并重启服务。
+  - 核对当前进程读取到的值：`python -c "import os; from dotenv import load_dotenv; load_dotenv(override=True); print(os.getenv('DATABASE_URL'))"`
+  - 连接验证（PowerShell）：`psql -c "select 1" $env:DATABASE_URL`（注意 `-c` 在 URL 前）
+
 ## 单测运行（占位符模板）
 - Pytest：pytest path/to/test.py::TestClass::test_name
 - 单文件：pytest path/to/test.py

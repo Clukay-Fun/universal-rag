@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from api.routes import router as api_router
 from config.settings import get_settings
 
-load_dotenv()
+load_dotenv(override=True)
 
 app = FastAPI(title="Universal RAG", version="0.1.0")
 app.include_router(api_router)

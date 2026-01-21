@@ -10,12 +10,16 @@ from __future__ import annotations
 
 import os
 
+from dotenv import load_dotenv
+
 import typer
 
 from cli.commands.enterprise import app as enterprise_app
 from cli.commands.performance import app as performance_app
 from cli.commands.lawyer import app as lawyer_app
 from cli.commands.chat import app as chat_app
+
+load_dotenv(override=True)
 
 app = typer.Typer(help="Universal RAG CLI")
 app.add_typer(enterprise_app, name="enterprise")
