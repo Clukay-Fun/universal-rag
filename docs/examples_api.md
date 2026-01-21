@@ -276,6 +276,20 @@ GET /documents/{doc_id}/tree
 }
 ```
 
+## 文档解析（写入业绩）
+
+POST /documents/parse?persist=true&use_model_structure=true
+
+响应示例
+```json
+{
+  "doc_id": 1,
+  "party_a_name": "深圳市深汕特别合作区深燃天然气有限有限公司",
+  "performance_id": 1,
+  "performance_error": null
+}
+```
+
 ## 文档节点搜索
 
 GET /documents/nodes/search?query=法律顾问&title=第三条&path=常年法律顾问合同

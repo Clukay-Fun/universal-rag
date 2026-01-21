@@ -51,6 +51,8 @@ class DocumentParseResponse(BaseModel):
     markdown: str | None = Field(None, description="Markdown 内容")
     structure_result: str | None = Field(None, description="结构化结果")
     structure_error: str | None = Field(None, description="结构化错误")
+    performance_id: int | None = Field(None, description="业绩记录ID")
+    performance_error: str | None = Field(None, description="业绩抽取错误")
     nodes: list[DocumentNode] = Field(default_factory=list, description="节点列表")
     stats: DocumentParseStats
 

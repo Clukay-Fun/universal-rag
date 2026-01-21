@@ -9,12 +9,14 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 
 from psycopg import Connection
 from psycopg.errors import UniqueViolation
 
 from schemas.performance import PerformanceCreate, PerformanceResponse
 from services.validators import ensure_non_negative, normalize_commas, parse_sign_date
+from services.contract_extract_service import extract_contract_fields
 
 # ============================================
 # region create_performance
@@ -141,6 +143,161 @@ def create_performance(conn: Connection, data: PerformanceCreate) -> Performance
         created_at=payload["created_at"],
         updated_at=payload["updated_at"],
     )
+# endregion
+# ============================================
+
+
+# ============================================
+# region _parse_decimal
+# ============================================
+def _parse_decimal(value: object | None) -> Decimal | None:
+    if value is None:
+        return None
+    try:
+        return Decimal(str(value))
+    except (InvalidOperation, ValueError) as exc:
+        raise ValueError("invalid decimal") from exc
+# endregion
+# ============================================
+
+
+# ============================================
+# region upsert_performance_from_document
+# ============================================
+def upsert_performance_from_document(
+    conn: Connection,
+    doc_id: int,
+    file_name: str | None,
+    markdown: str,
+    party_a_name: str | None,
+) -> tuple[int | None, str | None]:
+    """
+    从文档抽取并写入业绩表
+
+    参数:
+        conn: 数据库连接
+        doc_id: 文档ID
+        file_name: 文件名
+        markdown: 文档内容
+        party_a_name: 甲方名称
+    返回:
+        业绩ID与错误信息
+    """
+
+    payload = extract_contract_fields(markdown)
+    amount_value = _parse_decimal(payload.get("amount"))
+    if amount_value is None:
+        return None, "amount is required"
+    ensure_non_negative(amount_value, "amount")
+
+    subject_amount_value = _parse_decimal(payload.get("subject_amount"))
+    if subject_amount_value is not None:
+        ensure_non_negative(subject_amount_value, "subject_amount")
+
+    sign_date_raw = payload.get("sign_date")
+    raw_value = str(sign_date_raw) if sign_date_raw is not None else None
+    try:
+        sign_date_raw, sign_date_norm = parse_sign_date(raw_value, None)
+    except Exception:
+        sign_date_norm = None
+
+    team_member = normalize_commas(str(payload.get("team_member") or ""))
+    party_a = payload.get("party_a") or party_a_name
+
+    data = {
+        "id": doc_id,
+        "file_name": file_name,
+        "party_a": party_a,
+        "party_a_id": payload.get("party_a_id"),
+        "contract_number": None,
+        "amount": amount_value,
+        "fee_method": payload.get("fee_method"),
+        "sign_date_norm": sign_date_norm,
+        "sign_date_raw": sign_date_raw,
+        "project_type": payload.get("project_type"),
+        "project_detail": payload.get("project_detail"),
+        "subject_amount": subject_amount_value,
+        "opponent": payload.get("opponent"),
+        "team_member": team_member,
+        "summary": None,
+        "image_data": None,
+        "image_count": None,
+        "raw_text": markdown,
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow(),
+        "embedding": None,
+    }
+
+    conn.execute(
+        """
+        INSERT INTO performances (
+            id,
+            file_name,
+            party_a,
+            party_a_id,
+            contract_number,
+            amount,
+            fee_method,
+            sign_date_norm,
+            sign_date_raw,
+            project_type,
+            project_detail,
+            subject_amount,
+            opponent,
+            team_member,
+            summary,
+            image_data,
+            image_count,
+            raw_text,
+            created_at,
+            updated_at,
+            embedding
+        )
+        VALUES (
+            %(id)s,
+            %(file_name)s,
+            %(party_a)s,
+            %(party_a_id)s,
+            %(contract_number)s,
+            %(amount)s,
+            %(fee_method)s,
+            %(sign_date_norm)s,
+            %(sign_date_raw)s,
+            %(project_type)s,
+            %(project_detail)s,
+            %(subject_amount)s,
+            %(opponent)s,
+            %(team_member)s,
+            %(summary)s,
+            %(image_data)s,
+            %(image_count)s,
+            %(raw_text)s,
+            %(created_at)s,
+            %(updated_at)s,
+            %(embedding)s
+        )
+        ON CONFLICT (id)
+        DO UPDATE SET
+            file_name = EXCLUDED.file_name,
+            party_a = EXCLUDED.party_a,
+            party_a_id = EXCLUDED.party_a_id,
+            amount = EXCLUDED.amount,
+            fee_method = EXCLUDED.fee_method,
+            sign_date_norm = EXCLUDED.sign_date_norm,
+            sign_date_raw = EXCLUDED.sign_date_raw,
+            project_type = EXCLUDED.project_type,
+            project_detail = EXCLUDED.project_detail,
+            subject_amount = EXCLUDED.subject_amount,
+            opponent = EXCLUDED.opponent,
+            team_member = EXCLUDED.team_member,
+            summary = EXCLUDED.summary,
+            raw_text = EXCLUDED.raw_text,
+            updated_at = EXCLUDED.updated_at
+        """,
+        data,
+    )
+    conn.commit()
+    return doc_id, None
 # endregion
 # ============================================
 
