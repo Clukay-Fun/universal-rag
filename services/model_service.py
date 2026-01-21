@@ -66,12 +66,14 @@ def extract_json(prompt: str) -> ModelResponse:
 # ============================================
 def structure_document(markdown: str, nodes: list[dict[str, Any]] | None = None) -> ModelResponse:
     settings = get_settings().model
-    client = _get_client()
+    client = ModelClient(settings.api_base_url, settings.api_key, timeout=180)
     schema_hint = (
         "Output JSON only. Schema:\n"
         "{\"title\": \"...\", \"level\": 0, \"content\": \"...\", "
         "\"children\": [{...}]}\n"
         "Rules:\n"
+        "- Use a tree structure only; do NOT return a flat list or 'nodes' key.\n"
+        "- Split by headings and clause numbering (1., 1.1, 一、, （一）, ①).\n"
         "- children is a list of nodes with the same schema.\n"
         "- level increases by 1 for each nesting.\n"
         "- content contains full text for that section.\n"
@@ -85,7 +87,7 @@ def structure_document(markdown: str, nodes: list[dict[str, Any]] | None = None)
             f"{schema_hint}\n\n"
             "Markdown:\n"
             f"{markdown}\n\n"
-            "Nodes:\n"
+            "Nodes (reference only, do not output as list):\n"
             f"{node_payload}"
         )
     else:

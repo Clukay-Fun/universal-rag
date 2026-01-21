@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import re
+from typing import cast
 from datetime import datetime
 from pathlib import Path
 
@@ -45,6 +46,31 @@ def convert_to_markdown(file_path: str) -> tuple[str, str | None]:
 
 
 # ============================================
+# region _populate_node_paths
+# ============================================
+def _populate_node_paths(nodes: list[DocumentNode]) -> None:
+    node_map = {node.node_id: node for node in nodes}
+    cache: dict[int, list[str]] = {}
+
+    def build_path(node_id: int) -> list[str]:
+        if node_id in cache:
+            return cache[node_id]
+        node = node_map.get(node_id)
+        if not node:
+            return []
+        if node.parent_id is None or node.parent_id not in node_map:
+            path = [node.title]
+        else:
+            path = build_path(node.parent_id) + [node.title]
+        cache[node_id] = path
+        return path
+
+    for node in nodes:
+        node.path = build_path(node.node_id)
+# endregion
+# ============================================
+
+# ============================================
 # region persist_structure
 # ============================================
 def persist_structure(
@@ -70,25 +96,37 @@ def persist_structure(
     """
 
     payload_json = json.dumps(payload, ensure_ascii=False) if payload is not None else None
+    row = conn.execute(
+        """
+        SELECT node_id
+        FROM document_nodes
+        WHERE doc_id = %s AND parent_id IS NULL
+        ORDER BY COALESCE(order_index, 0), node_id
+        LIMIT 1
+        """,
+        (doc_id,),
+    ).fetchone()
+
+    if not row:
+        return
+
     conn.execute(
         """
-        INSERT INTO document_structures (
-            doc_id,
-            model_name,
-            payload,
-            raw_text,
-            error,
-            created_at
-        )
-        VALUES (%s, %s, %s::jsonb, %s, %s, %s)
+        UPDATE document_nodes
+        SET structure_model = %s,
+            structure_payload = %s::jsonb,
+            structure_raw = %s,
+            structure_error = %s,
+            structure_created_at = %s
+        WHERE node_id = %s
         """,
         (
-            doc_id,
             model_name,
             payload_json,
             raw_text,
             error,
             datetime.utcnow(),
+            row[0],
         ),
     )
     conn.commit()
@@ -155,15 +193,20 @@ def _build_nodes_from_structure(payload: dict[str, object]) -> list[DocumentNode
                     level=level,
                     title=title,
                     content=content,
+                    path=[],
                 )
             )
 
     def parse_tree(node_data: dict[str, object], parent_id: int | None, level_hint: int) -> None:
         node_id = len(nodes) + 1
         level_value = node_data.get("level")
-        try:
-            level = int(level_value) if level_value is not None else level_hint
-        except (TypeError, ValueError):
+        if isinstance(level_value, (int, float, str)):
+            try:
+                safe_value = cast(int | float | str, level_value)
+                level = int(safe_value)
+            except (TypeError, ValueError):
+                level = level_hint
+        else:
             level = level_hint
 
         title = node_data.get("title")
@@ -178,6 +221,7 @@ def _build_nodes_from_structure(payload: dict[str, object]) -> list[DocumentNode
                 level=level,
                 title=title,
                 content=content,
+                path=[],
             )
         )
 
@@ -229,6 +273,9 @@ def parse_markdown_nodes(markdown: str) -> list[DocumentNode]:
     # ============================================
 
     for line in markdown.splitlines():
+        level = 1
+        title = ""
+        parent_id = None
         match = HEADING_PATTERN.match(line.strip())
         if match:
             flush_content()
@@ -246,6 +293,7 @@ def parse_markdown_nodes(markdown: str) -> list[DocumentNode]:
                 level=level,
                 title=title,
                 content="",
+                path=[],
             )
             nodes.append(current_node)
             stack.append((level, node_id))
@@ -259,6 +307,7 @@ def parse_markdown_nodes(markdown: str) -> list[DocumentNode]:
                 level=1,
                 title="Document",
                 content="",
+                path=[],
             )
             nodes.append(current_node)
             stack = [(1, node_id)]
@@ -306,22 +355,10 @@ def persist_document(
         raise RuntimeError("Failed to persist document")
 
     doc_id = row[0]
-    payloads = []
+    id_map: dict[int, int] = {}
     for order_index, node in enumerate(nodes):
-        payloads.append(
-            {
-                "doc_id": doc_id,
-                "parent_id": node.parent_id,
-                "level": node.level,
-                "title": node.title,
-                "content": node.content,
-                "order_index": order_index,
-                "created_at": now,
-            }
-        )
-
-    with conn.cursor() as cursor:
-        cursor.executemany(
+        parent_id = id_map.get(node.parent_id) if node.parent_id is not None else None
+        row = conn.execute(
             """
             INSERT INTO document_nodes (
                 doc_id,
@@ -329,21 +366,27 @@ def persist_document(
                 level,
                 title,
                 content,
+                path,
                 order_index,
                 created_at
             )
-            VALUES (
-                %(doc_id)s,
-                %(parent_id)s,
-                %(level)s,
-                %(title)s,
-                %(content)s,
-                %(order_index)s,
-                %(created_at)s
-            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING node_id
             """,
-            payloads,
-        )
+            (
+                doc_id,
+                parent_id,
+                node.level,
+                node.title,
+                node.content,
+                node.path,
+                order_index,
+                now,
+            ),
+        ).fetchone()
+        if not row:
+            raise RuntimeError("Failed to persist document node")
+        id_map[node.node_id] = row[0]
 
     conn.commit()
     return doc_id
@@ -395,7 +438,7 @@ def parse_document(
                 }
                 for node in nodes
             ]
-            response = structure_document(markdown, node_payload)
+            response = structure_document(markdown, None)
             structure_result = response.content
             if structure_result:
                 json_text = _extract_json_text(structure_result)
@@ -406,6 +449,8 @@ def parse_document(
                     nodes = structured_nodes
         except Exception as exc:
             structure_error = str(exc)
+
+    _populate_node_paths(nodes)
 
     if persist:
         if conn is None:

@@ -20,6 +20,7 @@ class DocumentNode(BaseModel):
     level: int = Field(..., description="层级")
     title: str = Field(..., description="标题")
     content: str = Field(..., description="内容")
+    path: list[str] = Field(default_factory=list, description="血缘路径")
 
     model_config = ConfigDict(extra="forbid")
 

@@ -32,10 +32,11 @@ def get_document_structure(conn: Connection, doc_id: int) -> DocumentStructureRe
 
     row = conn.execute(
         """
-        SELECT doc_id, model_name, payload, raw_text, error, created_at
-        FROM document_structures
-        WHERE doc_id = %s
-        ORDER BY structure_id DESC
+        SELECT doc_id, structure_model, structure_payload, structure_raw,
+               structure_error, structure_created_at
+        FROM document_nodes
+        WHERE doc_id = %s AND parent_id IS NULL
+        ORDER BY COALESCE(order_index, 0), node_id
         LIMIT 1
         """,
         (doc_id,),
