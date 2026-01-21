@@ -30,7 +30,7 @@ psql "${DATABASE_URL}" -f sql/schema_documents.sql
 
 4) 启动 FastAPI
 ```bash
-uvicorn api.main:app --host 0.0.0.0 --port 8001 --reload
+uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ## CLI 使用（Typer）

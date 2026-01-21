@@ -4,7 +4,7 @@
 ## 项目定位
 - 目标：通用性 RAG 知识库（后端 + 终端对话）
 - 关键体验：SSE 实时展示 Agent 状态
-- 默认服务地址：http://localhost:8001/
+- 默认服务地址：http://localhost:8000/
 
 ## 模块与功能
 - 文档解析：Word -> MarkItDown，保留结构

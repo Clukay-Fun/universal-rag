@@ -25,7 +25,7 @@ def _get_base_url(api_base: str | None) -> str:
     if api_base:
         return api_base.rstrip("/")
     host = os.getenv("FASTAPI_HOST", "127.0.0.1")
-    port = os.getenv("FASTAPI_PORT", "8001")
+    port = os.getenv("FASTAPI_PORT", "8000")
     if host == "0.0.0.0":
         host = "127.0.0.1"
     return f"http://{host}:{port}"
@@ -141,9 +141,11 @@ def _send_sse_message(
 def _print_history(base_url: str, session_id: str) -> None:
     url = f"{base_url}/chat/sessions/{session_id}/history"
     data = _get_json(url)
-    messages = data.get("messages", [])
+    raw_messages = data.get("messages", [])
+    messages = raw_messages if isinstance(raw_messages, list) else []
     for msg in messages:
-        typer.echo(f"{msg.get('role')}: {msg.get('content')}")
+        if isinstance(msg, dict):
+            typer.echo(f"{msg.get('role')}: {msg.get('content')}")
 # endregion
 # ============================================
 

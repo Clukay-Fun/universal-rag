@@ -77,7 +77,7 @@ def get_settings() -> AppSettings:
     service = ServiceSettings(
         database_url=_get_env("DATABASE_URL"),
         fastapi_host=_get_env("FASTAPI_HOST", "0.0.0.0"),
-        fastapi_port=int(_get_env("FASTAPI_PORT", "8001")),
+        fastapi_port=int(_get_env("FASTAPI_PORT", "8000")),
         log_level=_get_env("LOG_LEVEL", "INFO"),
     )
 
