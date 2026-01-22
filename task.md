@@ -52,7 +52,7 @@
 - [x] GET `/matching/tenders/{tender_id}/results`：查询匹配结果列表
 
 ### CLI 命令
-- [ ] `cli/commands/matching.py`：tender insert / query / match 命令
+- [x] `cli/commands/matching.py`：tender insert / query / match 命令
 
 ### 测试
 - [ ] 单元测试：`tests/test_matching_service.py`
