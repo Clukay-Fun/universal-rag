@@ -31,16 +31,39 @@
 - [x] 业绩入库与查询
 
 ## 智能匹配
-- [ ] 招标需求解析
-- [ ] 匹配排序与理由输出
+### 数据库与 Schema
+- [x] 创建 `TenderRequirementCreate` / `TenderRequirementResponse` Schema
+- [x] 创建 `ContractMatchCreate` / `ContractMatchResponse` Schema
+- [ ] 确认 `tender_requirements` / `contract_matches` 表已迁移（database_schema.sql）
+
+### 提示词管理
+- [x] 创建招标需求解析提示词 `prompts/matching/tender_parse.md`
+- [x] 创建匹配评分提示词 `prompts/matching/match_score.md`
+
+### 服务层
+- [x] 实现 `tender_service.py`：招标需求解析（调用模型提取约束条件）
+- [ ] 实现 `matching_service.py`：匹配逻辑（筛选 + 评分 + 理由生成）
+- [ ] 支持多维度约束过滤（金额区间、项目类型、行业、时间范围）
+
+### API 路由
+- [ ] POST `/matching/tenders`：创建招标需求
+- [ ] GET `/matching/tenders/{tender_id}`：查询招标需求详情
+- [ ] POST `/matching/tenders/{tender_id}/match`：执行匹配并返回结果
+- [ ] GET `/matching/tenders/{tender_id}/results`：查询匹配结果列表
+
+### CLI 命令
+- [ ] `cli/commands/matching.py`：tender insert / query / match 命令
+
+### 测试
+- [ ] 单元测试：`tests/test_matching_service.py`
+
+## SSE 实时状态
+- [ ] SSE 状态推送与终端展示
 
 ## Agent Loop 与工具系统
 - [ ] 状态机与最大步数控制
 - [ ] 工具注册与失败处理
 - [ ] 工具结果写回对话历史
-
-## SSE 实时状态
-- [ ] SSE 状态推送与终端展示
 
 ## 对话与会话（SSE）
 - [x] chat_sessions/chat_messages 表
