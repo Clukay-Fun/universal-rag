@@ -15,6 +15,7 @@ from api.routes.documents import router as documents_router
 from api.routes.vector import router as vector_router
 from api.routes.rag import router as rag_router
 from api.routes.chat import router as chat_router
+from api.routes.matching import router as matching_router
 
 router = APIRouter()
 router.include_router(health_router)
@@ -25,3 +26,4 @@ router.include_router(documents_router)
 router.include_router(vector_router)
 router.include_router(rag_router)
 router.include_router(chat_router)
+router.include_router(matching_router)

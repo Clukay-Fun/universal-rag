@@ -25,7 +25,7 @@ PROMPT_PATH = Path("prompts/matching/tender_parse.md")
 
 
 # ============================================
-# region _extract_json_text
+# region 提取JSON文本
 # ============================================
 def _extract_json_text(text: str) -> str:
     """
@@ -48,7 +48,7 @@ def _extract_json_text(text: str) -> str:
 
 
 # ============================================
-# region load_tender_parse_prompt
+# region 加载解析提示词
 # ============================================
 def load_tender_parse_prompt() -> str:
     """
@@ -65,7 +65,7 @@ def load_tender_parse_prompt() -> str:
 
 
 # ============================================
-# region parse_tender_constraints
+# region 解析招标约束
 # ============================================
 def parse_tender_constraints(raw_text: str) -> dict[str, Any]:
     """
@@ -91,7 +91,7 @@ def parse_tender_constraints(raw_text: str) -> dict[str, Any]:
 
 
 # ============================================
-# region create_tender_requirement
+# region 创建招标需求
 # ============================================
 def create_tender_requirement(
     conn: Connection,
@@ -143,7 +143,7 @@ def create_tender_requirement(
 
 
 # ============================================
-# region get_tender_requirement
+# region 查询招标需求
 # ============================================
 def get_tender_requirement(
     conn: Connection,
@@ -183,7 +183,7 @@ def get_tender_requirement(
 
 
 # ============================================
-# region list_tender_requirements
+# region 招标需求列表
 # ============================================
 def list_tender_requirements(
     conn: Connection,
@@ -227,7 +227,7 @@ def list_tender_requirements(
 
 
 # ============================================
-# region delete_tender_requirement
+# region 删除招标需求
 # ============================================
 def delete_tender_requirement(
     conn: Connection,

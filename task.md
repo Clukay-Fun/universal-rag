@@ -42,14 +42,14 @@
 
 ### 服务层
 - [x] 实现 `tender_service.py`：招标需求解析（调用模型提取约束条件）
-- [ ] 实现 `matching_service.py`：匹配逻辑（筛选 + 评分 + 理由生成）
-- [ ] 支持多维度约束过滤（金额区间、项目类型、行业、时间范围）
+- [x] 实现 `matching_service.py`：匹配逻辑（筛选 + 评分 + 理由生成）
+- [x] 支持多维度约束过滤（金额区间、项目类型、行业、时间范围）
 
 ### API 路由
-- [ ] POST `/matching/tenders`：创建招标需求
-- [ ] GET `/matching/tenders/{tender_id}`：查询招标需求详情
-- [ ] POST `/matching/tenders/{tender_id}/match`：执行匹配并返回结果
-- [ ] GET `/matching/tenders/{tender_id}/results`：查询匹配结果列表
+- [x] POST `/matching/tenders`：创建招标需求
+- [x] GET `/matching/tenders/{tender_id}`：查询招标需求详情
+- [x] POST `/matching/tenders/{tender_id}/match`：执行匹配并返回结果
+- [x] GET `/matching/tenders/{tender_id}/results`：查询匹配结果列表
 
 ### CLI 命令
 - [ ] `cli/commands/matching.py`：tender insert / query / match 命令
