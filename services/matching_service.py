@@ -10,12 +10,13 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import Any, LiteralString, cast
 
-from psycopg import Connection
+from psycopg import Connection, sql
 
 from schemas.matching import (
     ContractMatchCreate,
@@ -26,6 +27,8 @@ from schemas.matching import (
 from services.model_service import extract_json
 
 PROMPT_PATH = Path("prompts/matching/match_score.md")
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================
@@ -96,8 +99,9 @@ def _build_filter_sql(constraints: dict[str, Any]) -> tuple[str, list[Any]]:
         try:
             conditions.append("amount >= %s")
             params.append(Decimal(str(min_amount)))
-        except Exception:
-             pass # 防止金额列也不存在
+        except Exception as exc:
+            logger.warning("Invalid min_amount constraint", exc_info=exc)
+            pass
 
     # max_amount = constraints.get("max_amount")
     # if max_amount is not None:
@@ -159,20 +163,19 @@ def filter_candidates(
     params.append(limit)
 
     with conn.cursor() as cur:
-        # 使用 SELECT * 动态获取所有列
-        cur.execute(
-            f"""
-            SELECT *
-            FROM contract_data
+        safe_where = cast(LiteralString, where_clause)
+        query = sql.SQL(
+            """
+            SELECT id, party_a, amount, sign_date_norm, project_type, project_detail
+            FROM performances
             WHERE {where_clause}
-            ORDER BY contract_id DESC
+            ORDER BY id DESC
             LIMIT %s
-            """,
-            params,
-        )
+            """
+        ).format(where_clause=sql.SQL(safe_where))
+        cur.execute(query, params)
         rows = cur.fetchall()
-        
-        # 获取列名
+
         col_names = [desc[0] for desc in cur.description] if cur.description else []
 
     candidates = []
@@ -271,8 +274,8 @@ def execute_matching(
                 "score": score_result["score"],
                 "reasons": score_result["reasons"],
             })
-        except Exception:
-            # 评分失败则跳过
+        except Exception as exc:
+            logger.warning("评分失败，contract_id=%s", contract.get("contract_id"), exc_info=exc)
             continue
 
     # 3. 按得分排序取 top_k
@@ -281,31 +284,37 @@ def execute_matching(
 
     # 4. 持久化到 contract_matches 表
     results: list[ContractMatchResponse] = []
-    with conn.cursor() as cur:
-        for item in top_results:
-            cur.execute(
-                """
-                INSERT INTO contract_matches (tender_id, contract_id, score, reasons)
-                VALUES (%s, %s, %s, %s)
-                RETURNING match_id, tender_id, contract_id, score, reasons, created_at
-                """,
-                (
-                    tender_id,
-                    item["contract_id"],
-                    Decimal(str(item["score"])),
-                    json.dumps(item["reasons"], ensure_ascii=False),
-                ),
-            )
-            row = cur.fetchone()
-            if row:
-                results.append(ContractMatchResponse(
-                    match_id=row[0],
-                    tender_id=row[1],
-                    contract_id=row[2],
-                    score=row[3],
-                    reasons=row[4] if isinstance(row[4], list) else json.loads(row[4] or "[]"),
-                    created_at=row[5],
-                ))
+    try:
+        with conn.cursor() as cur:
+            for item in top_results:
+                cur.execute(
+                    """
+                    INSERT INTO contract_matches (tender_id, contract_id, score, reasons)
+                    VALUES (%s, %s, %s, %s)
+                    RETURNING match_id, tender_id, contract_id, score, reasons, created_at
+                    """,
+                    (
+                        tender_id,
+                        item["contract_id"],
+                        Decimal(str(item["score"])),
+                        json.dumps(item["reasons"], ensure_ascii=False),
+                    ),
+                )
+                row = cur.fetchone()
+                if row:
+                    results.append(ContractMatchResponse(
+                        match_id=row[0],
+                        tender_id=row[1],
+                        contract_id=row[2],
+                        score=row[3],
+                        reasons=row[4] if isinstance(row[4], list) else json.loads(row[4] or "[]"),
+                        created_at=row[5],
+                    ))
+        conn.commit()
+    except Exception as exc:
+        conn.rollback()
+        logger.error("保存匹配结果失败，tender_id=%s", tender_id, exc_info=exc)
+        raise
 
     return results
 # endregion
@@ -334,7 +343,7 @@ def get_match_results(
             """
             SELECT m.match_id, m.score, m.reasons, c.*
             FROM contract_matches m
-            JOIN contract_data c ON m.contract_id = c.contract_id
+            JOIN performances c ON m.contract_id = c.id
             WHERE m.tender_id = %s
             ORDER BY m.score DESC
             """,
@@ -353,15 +362,21 @@ def get_match_results(
         if isinstance(reasons, str):
             reasons = json.loads(reasons or "[]")
 
+        match_id = row_dict.get("match_id")
+        contract_id = row_dict.get("contract_id")
+        score = row_dict.get("score")
+        amount = row_dict.get("amount")
+        score_value = Decimal(str(score)) if score is not None else Decimal("0")
+        amount_value = Decimal(str(amount)) if amount is not None else None
         items.append(ContractMatchWithDetail(
-            match_id=row_dict.get("match_id"),
-            score=row_dict.get("score"),
-            reasons=reasons,
-            contract_id=row_dict.get("contract_id"),
+            match_id=int(match_id) if isinstance(match_id, int) else 0,
+            score=score_value,
+            reasons=reasons if isinstance(reasons, list) else [],
+            contract_id=int(contract_id) if isinstance(contract_id, int) else 0,
             party_a=row_dict.get("party_a"),
             project_type=row_dict.get("project_type"),
             project_detail=row_dict.get("project_detail"),
-            amount=row_dict.get("amount"),
+            amount=amount_value,
             sign_date_raw=row_dict.get("sign_date_raw"),
         ))
 
@@ -460,8 +475,8 @@ def execute_matching_stream(
             })
             # 每评分一条推送进度
             yield sse_progress(idx + 1, total, f"已评分 {idx + 1}/{total}")
-        except Exception:
-            # 评分失败则跳过
+        except Exception as exc:
+            logger.warning("评分失败，contract_id=%s", contract.get("contract_id"), exc_info=exc)
             continue
 
     # 3. 排序取 top_k
@@ -471,31 +486,38 @@ def execute_matching_stream(
     # 4. 持久化
     yield sse_status(MatchingState.SAVING.value, 3, 3, "正在保存结果...")
     results: list[ContractMatchResponse] = []
-    with conn.cursor() as cur:
-        for item in top_results:
-            cur.execute(
-                """
-                INSERT INTO contract_matches (tender_id, contract_id, score, reasons)
-                VALUES (%s, %s, %s, %s)
-                RETURNING match_id, tender_id, contract_id, score, reasons, created_at
-                """,
-                (
-                    tender_id,
-                    item["contract_id"],
-                    Decimal(str(item["score"])),
-                    json.dumps(item["reasons"], ensure_ascii=False),
-                ),
-            )
-            row = cur.fetchone()
-            if row:
-                results.append(ContractMatchResponse(
-                    match_id=row[0],
-                    tender_id=row[1],
-                    contract_id=row[2],
-                    score=row[3],
-                    reasons=row[4] if isinstance(row[4], list) else json.loads(row[4] or "[]"),
-                    created_at=row[5],
-                ))
+    try:
+        with conn.cursor() as cur:
+            for item in top_results:
+                cur.execute(
+                    """
+                    INSERT INTO contract_matches (tender_id, contract_id, score, reasons)
+                    VALUES (%s, %s, %s, %s)
+                    RETURNING match_id, tender_id, contract_id, score, reasons, created_at
+                    """,
+                    (
+                        tender_id,
+                        item["contract_id"],
+                        Decimal(str(item["score"])),
+                        json.dumps(item["reasons"], ensure_ascii=False),
+                    ),
+                )
+                row = cur.fetchone()
+                if row:
+                    results.append(ContractMatchResponse(
+                        match_id=row[0],
+                        tender_id=row[1],
+                        contract_id=row[2],
+                        score=row[3],
+                        reasons=row[4] if isinstance(row[4], list) else json.loads(row[4] or "[]"),
+                        created_at=row[5],
+                    ))
+        conn.commit()
+    except Exception as exc:
+        conn.rollback()
+        logger.error("保存匹配结果失败，tender_id=%s", tender_id, exc_info=exc)
+        yield sse_error(f"保存匹配结果失败: {exc}")
+        return []
 
     # 5. 完成
     yield sse_status(MatchingState.DONE.value, 3, 3, f"匹配完成，共 {len(results)} 条结果")

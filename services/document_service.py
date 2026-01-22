@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import cast
 from datetime import datetime
@@ -22,6 +23,8 @@ from config.settings import get_settings
 from schemas.document import DocumentNode, DocumentParseResponse, DocumentParseStats
 from services.model_service import extract_json, structure_document
 from services.performance_service import upsert_performance_from_document
+
+logger = logging.getLogger(__name__)
 
 HEADING_PATTERN = re.compile(r"^(#{1,6})\s+(.*)$")
 
@@ -64,8 +67,8 @@ def extract_party_a(markdown: str, file_name: str | None) -> tuple[str | None, s
                 name = str(payload.get("party_a_name") or "").strip()
                 if name:
                     return name, "content"
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Failed to extract party_a from content", exc_info=exc)
 
     if file_name:
         name = Path(file_name).stem.strip()
@@ -498,7 +501,7 @@ def parse_document(
                 }
                 for node in nodes
             ]
-            response = structure_document(markdown, None)
+            response = structure_document(markdown, node_payload)
             structure_result = response.content
             if structure_result:
                 json_text = _extract_json_text(structure_result)

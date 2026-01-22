@@ -98,6 +98,8 @@ async def run_agent_loop(
     current_step = 0
     final_answer = ""
     last_tool_signature = None
+    repeat_count = 0
+    repeat_limit = 2
     
     yield sse_status(AgentState.THINKING, step=1, total=max_steps, message="思考中...")
 
@@ -107,7 +109,7 @@ async def run_agent_loop(
         try:
             # 2. 调用 LLM (Reasoning)
             # 注意：这是一个同步调用，如果用 uvicorn 运行，建议放在线程池中，但这里简化直接调用
-            response = chat(messages)
+            response = await asyncio.to_thread(chat, messages)
             content = response.content or ""
             
             # 3. 解析输出
@@ -116,11 +118,17 @@ async def run_agent_loop(
             if tool_call:
                 # === 工具调用分支 ===
                 tool_name = tool_call.get("tool")
+                if not isinstance(tool_name, str):
+                    tool_name = ""
                 tool_args = tool_call.get("args") or {}
                 
                 # 检查死循环
                 tool_signature = json.dumps({"tool": tool_name, "args": tool_args}, sort_keys=True)
                 if tool_signature == last_tool_signature:
+                    repeat_count += 1
+                    if repeat_count > repeat_limit:
+                        yield sse_error("重复工具调用超过上限，已终止执行")
+                        return
                     # 发现重复调用，强制终止或给予强烈提示
                     error_msg = f"Error: Repeated tool call '{tool_name}' with same arguments. Stop and answer."
                     messages.append({"role": "assistant", "content": content})
@@ -135,6 +143,7 @@ async def run_agent_loop(
                     continue
 
                 last_tool_signature = tool_signature
+                repeat_count = 0
                 
                 yield sse_status(
                     AgentState.EXECUTING, 
@@ -144,15 +153,15 @@ async def run_agent_loop(
                 )
                 
                 # 查找工具
-                tool_cls = ToolRegistry.get_tool(tool_name)
+                tool_cls = ToolRegistry.get_tool(tool_name) if tool_name else None
                 if not tool_cls:
-                    result = f"Error: Tool '{tool_name}' not found."
+                    result = f"Error: Tool '{tool_name or 'UNKNOWN'}' not found."
                 else:
                     try:
                         # 实例化并运行
                         tool_instance = tool_cls(**tool_args)
                         # TODO: run 可能是同步或异步，BaseTool 定义是同步的
-                        result = tool_instance.run()
+                        result = await asyncio.to_thread(tool_instance.run)
                     except Exception as e:
                         result = f"Error execution tool: {str(e)}"
                 

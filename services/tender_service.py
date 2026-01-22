@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,8 @@ from schemas.matching import (
 from services.model_service import extract_json
 
 PROMPT_PATH = Path("prompts/matching/tender_parse.md")
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================
@@ -114,7 +117,8 @@ def create_tender_requirement(
     if auto_parse and not constraints:
         try:
             constraints = parse_tender_constraints(data.raw_text)
-        except Exception:
+        except Exception as exc:
+            logger.warning("解析招标约束失败", exc_info=exc)
             # 解析失败时使用空约束
             constraints = {}
 
@@ -131,6 +135,7 @@ def create_tender_requirement(
         if not row:
             raise ValueError("Failed to create tender requirement")
 
+    conn.commit()
     return TenderRequirementResponse(
         tender_id=row[0],
         title=row[1],
@@ -253,6 +258,7 @@ def delete_tender_requirement(
         )
         row = cur.fetchone()
 
+    conn.commit()
     return row[0] if row else None
 # endregion
 # ============================================

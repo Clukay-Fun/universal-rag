@@ -117,6 +117,8 @@ def search_document_nodes(
         检索结果元组
     """
 
+    if query_text.strip() == "":
+        return []
     query_vector = embed_texts([query_text])[0]
     vector_literal = _format_vector(query_vector)
 

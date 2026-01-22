@@ -172,9 +172,10 @@ def search_document_nodes(
     filters = []
     params: list[object] = []
 
-    if query:
+    query_text = query.strip() if query else ""
+    if query_text:
         filters.append("to_tsvector('simple', n.content) @@ plainto_tsquery('simple', %s)")
-        params.append(query)
+        params.append(query_text)
 
     if title:
         filters.append("n.title ILIKE %s")
@@ -185,19 +186,31 @@ def search_document_nodes(
         params.append([path])
 
     where_clause = " AND ".join(filters) if filters else "TRUE"
-    sql = (
-        "SELECT n.doc_id, n.node_id, n.title, n.content, n.path, "
-        "d.party_a_name, d.party_a_credit_code, "
-        "ts_rank(to_tsvector('simple', n.content), plainto_tsquery('simple', %s)) AS score "
-        "FROM document_nodes n JOIN documents d ON d.doc_id = n.doc_id WHERE "
-        f"{where_clause} "
-        "ORDER BY score DESC NULLS LAST, n.node_id "
-        "LIMIT %s"
-    )
-
-    params_for_rank = params.copy()
-    params_for_rank.insert(0, query or "")
-    params_for_rank.append(limit)
+    if query_text:
+        sql = (
+            "SELECT n.doc_id, n.node_id, n.title, n.content, n.path, "
+            "d.party_a_name, d.party_a_credit_code, "
+            "ts_rank(to_tsvector('simple', n.content), plainto_tsquery('simple', %s)) AS score "
+            "FROM document_nodes n JOIN documents d ON d.doc_id = n.doc_id WHERE "
+            f"{where_clause} "
+            "ORDER BY score DESC NULLS LAST, n.node_id "
+            "LIMIT %s"
+        )
+        params_for_rank = params.copy()
+        params_for_rank.insert(0, query_text)
+        params_for_rank.append(limit)
+    else:
+        sql = (
+            "SELECT n.doc_id, n.node_id, n.title, n.content, n.path, "
+            "d.party_a_name, d.party_a_credit_code, "
+            "NULL AS score "
+            "FROM document_nodes n JOIN documents d ON d.doc_id = n.doc_id WHERE "
+            f"{where_clause} "
+            "ORDER BY n.node_id "
+            "LIMIT %s"
+        )
+        params_for_rank = params.copy()
+        params_for_rank.append(limit)
 
     rows = conn.execute(sql, params_for_rank).fetchall()
     results = []

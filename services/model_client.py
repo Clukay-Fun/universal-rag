@@ -63,10 +63,18 @@ class ModelClient:
         try:
             with urllib.request.urlopen(request, timeout=self._timeout) as response:
                 data = response.read().decode("utf-8")
+            try:
                 return json.loads(data) if data else {}
+            except json.JSONDecodeError as exc:
+                preview = data[:200]
+                raise RuntimeError(f"Model response is not valid JSON: {preview}") from exc
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8")
             raise RuntimeError(f"Model request failed: {exc.code} {detail}") from exc
+        except TimeoutError as exc:
+            raise RuntimeError("Model request timed out") from exc
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"Model request failed: {exc.reason}") from exc
     # endregion
     # ============================================
 

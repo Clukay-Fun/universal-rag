@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+import logging
 from typing import Any, Type
 
 from pydantic import BaseModel, Field
@@ -76,6 +77,8 @@ class ToolRegistry:
     """
     _tools: dict[str, Type[BaseTool]] = {}
 
+    logger = logging.getLogger(__name__)
+
     @classmethod
     def register(cls, tool_cls: Type[BaseTool]) -> Type[BaseTool]:
         """
@@ -83,15 +86,13 @@ class ToolRegistry:
         """
         try:
             name = tool_cls.model_fields["name"].default
-            if not isinstance(name, str):
-                # 尝试从实例获取？不，这是类方法。
-                # 如果没有 default，BaseTool 其实是 require name 的。
-                # 所以定义子类时必须给 name 一个 default 值
-                pass
-            
+            if not isinstance(name, str) or not name:
+                cls.logger.error("Tool name is invalid: %s", tool_cls)
+                return tool_cls
+
             cls._tools[name] = tool_cls
-        except Exception:
-            pass
+        except Exception as exc:
+            cls.logger.error("Failed to register tool: %s", tool_cls, exc_info=exc)
         return tool_cls
 
     @classmethod
@@ -117,8 +118,8 @@ class ToolRegistry:
         for tool_cls in cls._tools.values():
             try:
                 schemas.append(tool_cls.get_schema())
-            except Exception:
-                pass
+            except Exception as exc:
+                cls.logger.error("Failed to build tool schema: %s", tool_cls, exc_info=exc)
         return schemas
 
 # 装饰器别名

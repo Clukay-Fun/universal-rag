@@ -30,3 +30,15 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+
+# Debug & Temp files
+debug_*.py
+*.tmp
+*.bak
+*.swp
+*~
+
+# Local development
+*.local
+uploads/
+temp/
