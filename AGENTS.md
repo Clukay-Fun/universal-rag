@@ -49,21 +49,29 @@
 - 过滤用例：pytest -k "keyword"
 - 其他框架：<single-test-command>  # 待补充
 
-## Agent Loop（Think-Execute）
-- 支持多轮规划与多轮工具调用
-- 状态机：THINKING / EXECUTING / DONE / ERROR
-- 必须有限步数控制，防止无限循环
-- 必须有超时控制（全局与单步）
-- 错误处理：可重试，但需退避与上限
-- 任一步失败需输出可追踪的错误上下文
+## Agent Loop (ReAct 实现)
+- 核心逻辑：`Think-Act-Observe` 循环 (`services/agent_service.py`)
+- 状态机流转：
+  - `THINKING`: 规划下一步或分析结果
+  - `EXECUTING`: 调用具体工具 (MatchTender / RAGSearch)
+  - `DONE`: 生成最终回答
+  - `ERROR`: 异常捕获与熔断
+- 安全机制：
+  - **死循环检测**：禁止连续使用相同参数调用同一工具
+  - **最大步数**：默认 10 步，超时自动停止
+  - **速率限制**：单步延时防止 API 429/403
 
-## 工具系统（框架化）
-- 工具自动注册，避免硬编码 if-else
-- 工具分级：固定工具 / 可选工具
-- 新增工具不改核心流程
-- 禁用自动执行，手动管理 ToolCalling
-- 工具失败：记录原因、输入、重试次数
-- 工具结果：必须进入对话历史
+## 工具系统 (Registry 模式)
+- 基础设施：`services/tool_registry.py`
+  - `BaseTool`: Pydantic 输入验证，统一 run 接口
+  - `ToolRegistry`: 装饰器 `@register_tool` 自动注册
+- 已实现工具：
+  - `match_tender`: 智能匹配招标需求与业绩合同
+  - `search_knowledge_base`: RAG 向量检索知识库
+- 扩展指南：
+  1. 继承 `BaseTool`
+  2. 使用 `@register_tool` 装饰
+  3. 实现 `run` 方法 (返回字符串结果)
 
 ## RAG 知识库链路
 - Markdown 文档解析与分块
@@ -167,8 +175,27 @@ def function_name(param: str) -> dict:
 - 查询：使用 <-> 作为相似度排序
 
 ## 更新清单（仓库完善后）
-- 用真实命令替换 Build/Lint/Test/Format/Dev
-- 补充 CI/部署/环境变量规范
-- 补充实际目录结构与模块边界
-- 更新单测示例为真实路径
 - 标注模型版本与调用额度限制
+
+## 验证与使用指南 (Walkthrough)
+### 1. 启动 CLI 对话
+```bash
+python -m cli.main chat
+```
+
+### 2. 测试场景
+- **RAG 检索**：
+  > "查找关于诉讼的合同条款"
+  - 预期：调用 `search_knowledge_base` -> 返回条款细节。
+
+- **智能匹配**：
+  > "为招标需求 2 匹配合适的业绩"
+  - 预期：调用 `match_tender` -> 返回匹配的合同列表及得分。
+
+- **混合推理**：
+  > "查找最近的诉讼合同，并总结它们的特点"
+  - 预期：先检索，后总结。
+
+### 3. 故障排查
+- 如果遇到 `403/400 Error`，请检查 `.env` 中的 Embedding 模型配置。
+- 如果 CLI 卡住，输入 `/exit` 退出。

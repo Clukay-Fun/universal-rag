@@ -172,7 +172,8 @@ def _send_sse_message(
         for event, data in _iter_sse(response):
             if event == "status":
                 payload = json.loads(data)
-                typer.echo(f"[{payload.get('state')}] {payload.get('step')}/{payload.get('total')}")
+                msg = payload.get("message", "")
+                typer.echo(f"[{payload.get('state')}] {payload.get('step')}/{payload.get('total')} {msg}")
             elif event == "chunk":
                 payload = json.loads(data)
                 typer.echo(payload.get("content", ""), nl=False)

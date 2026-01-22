@@ -72,9 +72,18 @@
 - [x] 终端实时显示匹配进度
 
 ## Agent Loop 与工具系统
-- [ ] 状态机与最大步数控制
-- [ ] 工具注册与失败处理
-- [ ] 工具结果写回对话历史
+### 基础设施
+- [x] 工具注册表 `services/tool_registry.py` (BaseTool, Registry)
+- [x] 通用工具集 `services/tools/` (MatchTool, RAGTool)
+
+### Agent Core
+- [x] Agent 执行循环 `services/agent_service.py` (Think-Act-Observe)
+- [x] 系统提示词模板 `prompts/agent/system.md` (定义工具协议)
+- [x] 状态机与错误处理 (Max Steps, Error Recovery)
+
+### 集成与测试
+- [x] 集成到 `api/routes/chat.py` (替换原 RAG 逻辑)
+- [ ] 单元测试与集成测试
 
 ## 对话与会话（SSE）
 - [x] chat_sessions/chat_messages 表

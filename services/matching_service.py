@@ -329,12 +329,10 @@ def get_match_results(
         匹配结果列表（含业绩详情）
     """
     with conn.cursor() as cur:
+        # 获取 contract_matches 的列，使用动态列获取防止列不存在报错
         cur.execute(
             """
-            SELECT 
-                m.match_id, m.score, m.reasons,
-                c.contract_id, c.party_a, c.project_type, 
-                c.project_detail, c.amount, c.sign_date_raw
+            SELECT m.match_id, m.score, m.reasons, c.*
             FROM contract_matches m
             JOIN contract_data c ON m.contract_id = c.contract_id
             WHERE m.tender_id = %s
@@ -343,23 +341,28 @@ def get_match_results(
             (tender_id,),
         )
         rows = cur.fetchall()
+        
+        # 获取列名
+        col_names = [desc[0] for desc in cur.description] if cur.description else []
 
     items = []
     for row in rows:
-        reasons = row[2]
+        row_dict = dict(zip(col_names, row))
+        
+        reasons = row_dict.get("reasons")
         if isinstance(reasons, str):
             reasons = json.loads(reasons or "[]")
 
         items.append(ContractMatchWithDetail(
-            match_id=row[0],
-            score=row[1],
+            match_id=row_dict.get("match_id"),
+            score=row_dict.get("score"),
             reasons=reasons,
-            contract_id=row[3],
-            party_a=row[4],
-            project_type=row[5],
-            project_detail=row[6],
-            amount=row[7],
-            sign_date_raw=row[8],
+            contract_id=row_dict.get("contract_id"),
+            party_a=row_dict.get("party_a"),
+            project_type=row_dict.get("project_type"),
+            project_detail=row_dict.get("project_detail"),
+            amount=row_dict.get("amount"),
+            sign_date_raw=row_dict.get("sign_date_raw"),
         ))
 
     return MatchResultList(

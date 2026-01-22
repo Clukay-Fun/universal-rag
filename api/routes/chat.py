@@ -30,9 +30,7 @@ from services.chat_service import (
     create_session,
     get_recent_sessions,
     get_recent_history,
-    truncate_history_by_chars,
 )
-from services.rag_service import generate_answer, retrieve_with_context
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -155,10 +153,12 @@ def get_chat_history(session_id: str) -> ChatHistoryResponse:
 # ============================================
 # region send_chat_message
 # ============================================
+from services.agent_service import run_agent_loop
+
 @router.post("/sessions/{session_id}/messages")
 async def send_chat_message(session_id: str, request: Request) -> StreamingResponse:
     """
-    SSE 发送消息
+    SSE 发送消息 (Agent Mode)
     """
 
     payload_json = await request.json()
@@ -167,68 +167,52 @@ async def send_chat_message(session_id: str, request: Request) -> StreamingRespo
     async def event_stream() -> AsyncGenerator[str, None]:
         db_url = get_database_url()
         with get_connection(db_url) as conn:
-            history = get_recent_history(conn, session_id, limit=20)
-            truncated = truncate_history_by_chars(history, max_chars=2000)
+            # 1. 获取并格式化历史
+            history_rows = get_recent_history(conn, session_id, limit=20)
+            history = []
+            for row in history_rows:
+                history.append({
+                    "role": str(row.get("role")), 
+                    "content": str(row.get("content"))
+                })
 
+            # 2. 保存用户消息
             append_message(conn, session_id, "user", payload.content)
 
-            history_text = "\n".join(
-                [f"{msg['role']}: {msg['content']}" for msg in truncated]
-            )
-            history_text = history_text.strip()
-
-            yield _sse_event("status", {"state": "RETRIEVE", "step": 1, "total": 3})
-            hits, citations, context_block = retrieve_with_context(
-                conn, payload.content, truncated, payload.top_k, payload.doc_id
-            )
-
-            yield _sse_event("status", {"state": "GENERATE", "step": 2, "total": 3})
-            answer = generate_answer(payload.content, context_block, history_text)
-
-            chunk_size = 200
-            for i in range(0, len(answer), chunk_size):
-                yield _sse_event("chunk", {"content": answer[i : i + chunk_size]})
-
-            preview_map: dict[tuple[int, int], str] = {}
-            for hit in hits:
-                hit_doc_id = int(hit[0])
-                node_id = int(hit[1])
-                content = str(hit[3] or "")
-                preview_map[(hit_doc_id, node_id)] = _build_preview(content)
-
-            citations_payload = []
-            for cite in citations:
-                key = (int(cite.source_id), int(cite.chunk_id))
-                filename = cite.file_name or cite.source_title
-                citations_payload.append(
-                    {
-                        "document_id": cite.source_id,
-                        "filename": filename,
-                        "chunk_index": cite.chunk_id,
-                        "preview": preview_map.get(key),
-                        "score": cite.score,
-                        "source_id": cite.source_id,
-                        "node_id": cite.chunk_id,
-                        "path": cite.path,
-                    }
+            # 3. 运行 Agent Loop
+            final_content = []
+            
+            # 使用 Agent Loop 生成回复
+            async for sse_string in run_agent_loop(session_id, payload.content, history):
+                yield sse_string
+                
+                # 捕获最终回答的内容以保存到数据库
+                if sse_string.startswith("event: chunk"):
+                    try:
+                        line = sse_string.split("\n")[1]
+                        if line.startswith("data: "):
+                            data_str = line[len("data: "):]
+                            data = json.loads(data_str)
+                            chunk = data.get("content", "")
+                            final_content.append(chunk)
+                    except Exception:
+                        pass
+            
+            # 4. 保存助手回复并结束
+            full_answer = "".join(final_content)
+            if full_answer:
+                # Agent 模式下 citations 暂时为空，或者后续从 Agent 状态中提取
+                message_id = append_message(
+                    conn,
+                    session_id,
+                    "assistant",
+                    full_answer,
+                    [],
                 )
-            message_id = append_message(
-                conn,
-                session_id,
-                "assistant",
-                answer,
-                citations_payload,
-            )
-
-            yield _sse_event(
-                "message",
-                {
-                    "role": "assistant",
-                    "content": answer,
-                    "citations": citations_payload,
-                },
-            )
-            yield _sse_event("done", {"message_id": message_id})
+                yield _sse_event("done", {"message_id": message_id})
+            else:
+                 # 即使没有回答也发送 done
+                 yield _sse_event("done", {"message_id": 0})
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 # endregion
