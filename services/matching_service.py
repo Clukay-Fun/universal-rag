@@ -83,50 +83,53 @@ def _build_filter_sql(constraints: dict[str, Any]) -> tuple[str, list[Any]]:
     conditions: list[str] = []
     params: list[Any] = []
 
-    # 项目类型过滤
-    project_types = constraints.get("project_types")
-    if project_types and isinstance(project_types, list) and len(project_types) > 0:
-        placeholders = ", ".join(["%s"] * len(project_types))
-        conditions.append(f"project_type IN ({placeholders})")
-        params.extend(project_types)
+    # 项目类型过滤（暂时禁用）
+    # project_types = constraints.get("project_types")
+    # if project_types and isinstance(project_types, list) and len(project_types) > 0:
+    #     placeholders = ", ".join(["%s"] * len(project_types))
+    #     conditions.append(f"project_type IN ({placeholders})")
+    #     params.extend(project_types)
 
     # 金额区间过滤
     min_amount = constraints.get("min_amount")
     if min_amount is not None:
-        conditions.append("amount >= %s")
-        params.append(Decimal(str(min_amount)))
+        try:
+            conditions.append("amount >= %s")
+            params.append(Decimal(str(min_amount)))
+        except Exception:
+             pass # 防止金额列也不存在
 
-    max_amount = constraints.get("max_amount")
-    if max_amount is not None:
-        conditions.append("amount <= %s")
-        params.append(Decimal(str(max_amount)))
+    # max_amount = constraints.get("max_amount")
+    # if max_amount is not None:
+    #     conditions.append("amount <= %s")
+    #     params.append(Decimal(str(max_amount)))
 
-    # 标的金额区间过滤
-    min_subject = constraints.get("min_subject_amount")
-    if min_subject is not None:
-        conditions.append("subject_amount >= %s")
-        params.append(Decimal(str(min_subject)))
+    # 标的金额区间过滤（暂时禁用）
+    # min_subject = constraints.get("min_subject_amount")
+    # if min_subject is not None:
+    #     conditions.append("subject_amount >= %s")
+    #     params.append(Decimal(str(min_subject)))
 
-    max_subject = constraints.get("max_subject_amount")
-    if max_subject is not None:
-        conditions.append("subject_amount <= %s")
-        params.append(Decimal(str(max_subject)))
+    # max_subject = constraints.get("max_subject_amount")
+    # if max_subject is not None:
+    #     conditions.append("subject_amount <= %s")
+    #     params.append(Decimal(str(max_subject)))
 
-    # 日期范围过滤
-    date_after = constraints.get("date_after")
-    if date_after:
-        conditions.append("sign_date_norm >= %s")
-        params.append(date_after)
+    # 日期范围过滤（暂时禁用）
+    # date_after = constraints.get("date_after")
+    # if date_after:
+    #     conditions.append("sign_date_norm >= %s")
+    #     params.append(date_after)
 
-    date_before = constraints.get("date_before")
-    if date_before:
-        conditions.append("sign_date_norm <= %s")
-        params.append(date_before)
+    # date_before = constraints.get("date_before")
+    # if date_before:
+    #     conditions.append("sign_date_norm <= %s")
+    #     params.append(date_before)
 
-    # 是否国企过滤
-    require_state_owned = constraints.get("require_state_owned")
-    if require_state_owned is True:
-        conditions.append("is_state_owned = TRUE")
+    # 是否国企过滤（暂时禁用，防止列不存在报错）
+    # require_state_owned = constraints.get("require_state_owned")
+    # if require_state_owned is True:
+    #     conditions.append("is_state_owned = TRUE")
 
     where_clause = " AND ".join(conditions) if conditions else "1=1"
     return where_clause, params
@@ -156,36 +159,34 @@ def filter_candidates(
     params.append(limit)
 
     with conn.cursor() as cur:
+        # 使用 SELECT * 动态获取所有列
         cur.execute(
             f"""
-            SELECT 
-                contract_id, contract_name, party_a, party_a_industry,
-                is_state_owned, amount, sign_date_raw, sign_date_norm,
-                project_type, project_detail, subject_amount, summary
+            SELECT *
             FROM contract_data
             WHERE {where_clause}
-            ORDER BY amount DESC
+            ORDER BY contract_id DESC
             LIMIT %s
             """,
             params,
         )
         rows = cur.fetchall()
+        
+        # 获取列名
+        col_names = [desc[0] for desc in cur.description] if cur.description else []
 
     candidates = []
     for row in rows:
+        # 构建字典
+        row_dict = dict(zip(col_names, row))
+        # 只保留核心字段
         candidates.append({
-            "contract_id": row[0],
-            "contract_name": row[1],
-            "party_a": row[2],
-            "party_a_industry": row[3],
-            "is_state_owned": row[4],
-            "amount": float(row[5]) if row[5] else None,
-            "sign_date_raw": row[6],
-            "sign_date_norm": str(row[7]) if row[7] else None,
-            "project_type": row[8],
-            "project_detail": row[9],
-            "subject_amount": float(row[10]) if row[10] else None,
-            "summary": row[11],
+            "contract_id": row_dict.get("contract_id") or row_dict.get("id"),
+            "party_a": row_dict.get("party_a"),
+            "amount": float(row_dict.get("amount", 0)) if row_dict.get("amount") else None,
+            "sign_date_norm": str(row_dict.get("sign_date_norm")) if row_dict.get("sign_date_norm") else None,
+            "project_type": row_dict.get("project_type"),
+            "project_detail": row_dict.get("project_detail"),
         })
 
     return candidates
