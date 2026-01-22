@@ -34,7 +34,7 @@
 ### 数据库与 Schema
 - [x] 创建 `TenderRequirementCreate` / `TenderRequirementResponse` Schema
 - [x] 创建 `ContractMatchCreate` / `ContractMatchResponse` Schema
-- [ ] 确认 `tender_requirements` / `contract_matches` 表已迁移（database_schema.sql）
+- [x] 确认 `tender_requirements` / `contract_matches` 表已迁移（database_schema.sql）
 
 ### 提示词管理
 - [x] 创建招标需求解析提示词 `prompts/matching/tender_parse.md`
@@ -55,7 +55,7 @@
 - [x] `cli/commands/matching.py`：tender insert / query / match 命令
 
 ### 测试
-- [ ] 单元测试：`tests/test_matching_service.py`
+- [x] 单元测试：`tests/test_matching_service.py`
 
 ## SSE 实时状态
 - [ ] SSE 状态推送与终端展示
