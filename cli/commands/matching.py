@@ -218,11 +218,15 @@ def delete_tender(
 # ============================================
 # region 执行匹配
 # ============================================
+from services.matching_service import execute_matching_stream
+
+
 @app.command("match")
 def match_tender(
     ctx: typer.Context,
     tender_id: int = typer.Option(..., "--id", help="招标需求ID"),
     top_k: int = typer.Option(10, "--top", help="返回前K条结果"),
+    stream: bool = typer.Option(False, "--stream", help="启用实时进度显示"),
     json_output: bool = typer.Option(True, "--json", help="输出 JSON"),
 ) -> None:
     """
@@ -232,6 +236,7 @@ def match_tender(
         ctx: Typer 上下文
         tender_id: 招标需求ID
         top_k: 返回前K条结果
+        stream: 是否启用实时进度显示
         json_output: 是否输出 JSON
     返回:
         None
@@ -243,36 +248,76 @@ def match_tender(
             typer.echo("招标需求不存在", err=True)
             raise typer.Exit(code=1)
 
-        typer.echo(f"正在匹配招标需求 {tender_id}...", err=True)
-
         # 2. 清除旧结果
         delete_match_results(conn, tender_id)
 
         # 3. 执行匹配
-        try:
-            results = execute_matching(conn, tender_id, tender.constraints, top_k=top_k)
-        except Exception as exc:
-            typer.echo(f"匹配失败: {exc}", err=True)
-            raise typer.Exit(code=1)
+        if stream:
+            # 流式模式：实时显示进度
+            typer.echo(f"开始匹配招标需求 {tender_id}...", err=True)
+            try:
+                gen = execute_matching_stream(conn, tender_id, tender.constraints, top_k=top_k)
+                results = []
+                for event in gen:
+                    # 解析 SSE 事件并显示
+                    if event.startswith("event: status"):
+                        # 提取状态信息
+                        lines = event.strip().split("\n")
+                        for line in lines:
+                            if line.startswith("data:"):
+                                data = json.loads(line[5:].strip())
+                                state = data.get("state", "")
+                                message = data.get("message", "")
+                                typer.echo(f"  [{state}] {message}", err=True)
+                    elif event.startswith("event: progress"):
+                        lines = event.strip().split("\n")
+                        for line in lines:
+                            if line.startswith("data:"):
+                                data = json.loads(line[5:].strip())
+                                percent = data.get("percent", 0)
+                                message = data.get("message", "")
+                                typer.echo(f"  进度: {percent:.1f}% - {message}", err=True)
+                    elif event.startswith("event: done"):
+                        lines = event.strip().split("\n")
+                        for line in lines:
+                            if line.startswith("data:"):
+                                data = json.loads(line[5:].strip())
+                                results = data.get("results", [])
+            except Exception as exc:
+                typer.echo(f"匹配失败: {exc}", err=True)
+                raise typer.Exit(code=1)
 
-    output = [
-        {
-            "match_id": r.match_id,
-            "contract_id": r.contract_id,
-            "score": float(r.score),
-            "reasons": r.reasons,
-        }
-        for r in results
-    ]
+            if json_output:
+                typer.echo(json.dumps(results, ensure_ascii=False, default=str))
+            else:
+                typer.echo(f"\n匹配完成，共 {len(results)} 条结果")
+        else:
+            # 普通模式
+            typer.echo(f"正在匹配招标需求 {tender_id}...", err=True)
+            try:
+                results = execute_matching(conn, tender_id, tender.constraints, top_k=top_k)
+            except Exception as exc:
+                typer.echo(f"匹配失败: {exc}", err=True)
+                raise typer.Exit(code=1)
 
-    if json_output:
-        typer.echo(json.dumps(output, ensure_ascii=False, default=str))
-    else:
-        typer.echo(f"匹配完成，共 {len(results)} 条结果:")
-        for r in results:
-            typer.echo(f"  [{r.contract_id}] 得分: {r.score:.2f}")
-            for reason in r.reasons[:2]:
-                typer.echo(f"    - {reason}")
+            output = [
+                {
+                    "match_id": r.match_id,
+                    "contract_id": r.contract_id,
+                    "score": float(r.score),
+                    "reasons": r.reasons,
+                }
+                for r in results
+            ]
+
+            if json_output:
+                typer.echo(json.dumps(output, ensure_ascii=False, default=str))
+            else:
+                typer.echo(f"匹配完成，共 {len(results)} 条结果:")
+                for r in results:
+                    typer.echo(f"  [{r.contract_id}] 得分: {r.score:.2f}")
+                    for reason in r.reasons[:2]:
+                        typer.echo(f"    - {reason}")
 # endregion
 # ============================================
 

@@ -58,7 +58,18 @@
 - [x] 单元测试：`tests/test_matching_service.py`
 
 ## SSE 实时状态
-- [ ] SSE 状态推送与终端展示
+### 基础架构
+- [x] SSE 事件工具类 `services/sse_utils.py`（标准化事件格式）
+- [x] 状态枚举定义（THINKING / EXECUTING / DONE / ERROR）
+
+### 智能匹配 SSE 支持
+- [x] `POST /matching/tenders/{tender_id}/match/stream`：SSE 匹配接口
+- [x] 匹配过程状态推送（筛选中 / 评分中 / 完成）
+- [x] 进度百分比推送
+
+### CLI 终端展示
+- [x] `cli/commands/matching.py` 添加 `--stream` 参数
+- [x] 终端实时显示匹配进度
 
 ## Agent Loop 与工具系统
 - [ ] 状态机与最大步数控制

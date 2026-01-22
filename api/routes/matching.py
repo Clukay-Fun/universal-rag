@@ -197,3 +197,53 @@ def get_match_results_endpoint(
     return get_match_results(conn, tender_id)
 # endregion
 # ============================================
+
+
+# ============================================
+# region SSE执行匹配
+# ============================================
+from typing import Generator
+from fastapi.responses import StreamingResponse
+from db.connection import get_connection, get_database_url
+from services.matching_service import execute_matching_stream
+from services.sse_utils import sse_error
+
+
+@router.post("/tenders/{tender_id}/match/stream")
+async def match_tender_stream_endpoint(
+    tender_id: int,
+    top_k: int = Query(10, ge=1, le=50, description="返回前K条结果"),
+) -> StreamingResponse:
+    """
+    执行匹配（SSE 流式）：实时推送匹配进度
+
+    参数:
+        tender_id: 招标需求ID
+        top_k: 返回前K条结果
+    返回:
+        SSE 事件流
+    """
+    def event_stream() -> Generator[str, None, None]:
+        db_url = get_database_url()
+        with get_connection(db_url) as conn:
+            # 1. 获取招标需求
+            tender = get_tender_requirement(conn, tender_id)
+            if not tender:
+                yield sse_error("招标需求不存在", "NOT_FOUND")
+                return
+
+            # 2. 清除旧匹配结果
+            delete_match_results(conn, tender_id)
+
+            # 3. 执行匹配（流式）
+            try:
+                gen = execute_matching_stream(conn, tender_id, tender.constraints, top_k=top_k)
+                for event in gen:
+                    yield event
+            except Exception as exc:
+                yield sse_error(str(exc), "MATCH_ERROR")
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+# endregion
+# ============================================
+

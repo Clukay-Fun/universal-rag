@@ -397,3 +397,113 @@ def delete_match_results(
         return cur.rowcount
 # endregion
 # ============================================
+
+
+# ============================================
+# region SSE匹配生成器
+# ============================================
+from typing import Generator
+
+from services.sse_utils import (
+    MatchingState,
+    sse_status,
+    sse_progress,
+    sse_done,
+    sse_error,
+)
+
+
+def execute_matching_stream(
+    conn: Connection,
+    tender_id: int,
+    constraints: dict[str, Any],
+    top_k: int = 10,
+) -> Generator[str, None, list[ContractMatchResponse]]:
+    """
+    执行匹配（SSE 流式版本）：逐步推送状态
+
+    参数:
+        conn: 数据库连接
+        tender_id: 招标需求ID
+        constraints: 约束条件
+        top_k: 返回前 K 条结果
+    返回:
+        生成器，yield SSE 事件字符串，最终返回匹配结果列表
+    """
+    # 1. 筛选候选业绩
+    yield sse_status(MatchingState.FILTERING.value, 1, 3, "正在筛选候选业绩...")
+    candidates = filter_candidates(conn, constraints, limit=top_k * 3)
+
+    if not candidates:
+        yield sse_status(MatchingState.DONE.value, 3, 3, "无符合条件的业绩")
+        yield sse_done({"total": 0, "results": []})
+        return []
+
+    yield sse_progress(1, 3, f"筛选出 {len(candidates)} 条候选业绩")
+
+    # 2. 对每条候选评分
+    yield sse_status(MatchingState.SCORING.value, 2, 3, "正在评分...")
+    scored_candidates = []
+    total = len(candidates)
+
+    for idx, contract in enumerate(candidates):
+        try:
+            score_result = score_contract(constraints, contract)
+            scored_candidates.append({
+                "contract_id": contract["contract_id"],
+                "score": score_result["score"],
+                "reasons": score_result["reasons"],
+            })
+            # 每评分一条推送进度
+            yield sse_progress(idx + 1, total, f"已评分 {idx + 1}/{total}")
+        except Exception:
+            # 评分失败则跳过
+            continue
+
+    # 3. 排序取 top_k
+    scored_candidates.sort(key=lambda x: x["score"], reverse=True)
+    top_results = scored_candidates[:top_k]
+
+    # 4. 持久化
+    yield sse_status(MatchingState.SAVING.value, 3, 3, "正在保存结果...")
+    results: list[ContractMatchResponse] = []
+    with conn.cursor() as cur:
+        for item in top_results:
+            cur.execute(
+                """
+                INSERT INTO contract_matches (tender_id, contract_id, score, reasons)
+                VALUES (%s, %s, %s, %s)
+                RETURNING match_id, tender_id, contract_id, score, reasons, created_at
+                """,
+                (
+                    tender_id,
+                    item["contract_id"],
+                    Decimal(str(item["score"])),
+                    json.dumps(item["reasons"], ensure_ascii=False),
+                ),
+            )
+            row = cur.fetchone()
+            if row:
+                results.append(ContractMatchResponse(
+                    match_id=row[0],
+                    tender_id=row[1],
+                    contract_id=row[2],
+                    score=row[3],
+                    reasons=row[4] if isinstance(row[4], list) else json.loads(row[4] or "[]"),
+                    created_at=row[5],
+                ))
+
+    # 5. 完成
+    yield sse_status(MatchingState.DONE.value, 3, 3, f"匹配完成，共 {len(results)} 条结果")
+    yield sse_done({
+        "total": len(results),
+        "results": [
+            {"match_id": r.match_id, "contract_id": r.contract_id, "score": float(r.score)}
+            for r in results
+        ],
+    })
+
+    return results
+# endregion
+# ============================================
+
