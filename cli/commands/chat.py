@@ -163,9 +163,12 @@ def _send_sse_message(
     content: str,
     top_k: int,
     doc_id: int | None,
+    assistant_id: str | None,
 ) -> None:
     url = f"{base_url}/chat/sessions/{session_id}/messages"
-    payload = {"content": content, "top_k": top_k, "doc_id": doc_id}
+    payload: dict[str, object] = {"content": content, "top_k": top_k, "doc_id": doc_id}
+    if assistant_id:
+        payload["assistant_id"] = assistant_id
     data = json.dumps(payload).encode("utf-8")
     request = Request(url, data=data, method="POST", headers={"Content-Type": "application/json"})
 
@@ -245,6 +248,7 @@ def chat(
     session_id: str | None = typer.Option(None, "--session", help="会话ID"),
     user_id: str | None = typer.Option(None, help="用户ID"),
     doc_id: int | None = typer.Option(None, help="文档ID"),
+    assistant_id: str | None = typer.Option(None, "--assistant", help="助手ID"),
     top_k: int = typer.Option(5, help="召回数量"),
 ) -> None:
     """
@@ -284,6 +288,6 @@ def chat(
             _print_history(base_url, session_id)
             continue
 
-        _send_sse_message(base_url, session_id, content, top_k, doc_id)
+        _send_sse_message(base_url, session_id, content, top_k, doc_id, assistant_id)
 # endregion
 # ============================================

@@ -93,6 +93,13 @@ def get_settings() -> AppSettings:
         chat_model=_get_env("CHAT_MODEL", "internlm/internlm2_5-7b-chat"),
     )
 
+    if not service.database_url:
+        raise RuntimeError("DATABASE_URL is required")
+    if not model.api_base_url:
+        raise RuntimeError("MODEL_API_BASE_URL is required")
+    if not model.api_key:
+        raise RuntimeError("MODEL_API_KEY is required")
+
     return AppSettings(service=service, model=model)
 # endregion
 # ============================================

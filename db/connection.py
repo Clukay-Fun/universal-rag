@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import os
 from contextlib import contextmanager
-from typing import Iterator
+from typing import ContextManager, Iterator
 
 import psycopg
 from psycopg import Connection
@@ -37,7 +37,7 @@ def get_database_url() -> str:
 # region get_connection
 # ============================================
 @contextmanager
-def get_connection(db_url: str | None = None) -> Iterator[Connection]:
+def get_connection(db_url: str | None = None) -> ContextManager[Connection]:
     """
     获取数据库连接上下文
 

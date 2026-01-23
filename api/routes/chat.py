@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 from typing import AsyncGenerator
+from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
@@ -212,6 +213,12 @@ async def send_chat_message(session_id: str, request: Request) -> StreamingRespo
 
     payload_json = await request.json()
     payload = ChatMessageRequest(**payload_json)
+    assistant_id: UUID | None = None
+    if payload.assistant_id:
+        try:
+            assistant_id = UUID(payload.assistant_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="assistant_id 无效") from exc
 
     async def event_stream() -> AsyncGenerator[str, None]:
         db_url = get_database_url()
@@ -232,7 +239,12 @@ async def send_chat_message(session_id: str, request: Request) -> StreamingRespo
             final_content = []
             
             # 使用 Agent Loop 生成回复
-            async for sse_string in run_agent_loop(session_id, payload.content, history):
+            async for sse_string in run_agent_loop(
+                session_id,
+                payload.content,
+                history,
+                assistant_id=assistant_id,
+            ):
                 yield sse_string
                 
                 # 捕获最终回答的内容以保存到数据库

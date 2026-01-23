@@ -43,9 +43,10 @@ def main(
         None
     """
 
-    if not db_url:
-        raise typer.BadParameter("DATABASE_URL or --db-url is required")
-    ctx.obj = {"db_url": db_url}
+    if db_url:
+        ctx.obj = {"db_url": db_url}
+    else:
+        ctx.obj = {}
 # endregion
 # ============================================
 

@@ -52,6 +52,7 @@ class ChatMessageRequest(BaseModel):
     content: str = Field(..., description="消息内容")
     top_k: int = Field(5, description="召回数量")
     doc_id: int | None = Field(None, description="文档ID")
+    assistant_id: str | None = Field(None, description="助手ID")
 
     model_config = ConfigDict(extra="forbid")
 
