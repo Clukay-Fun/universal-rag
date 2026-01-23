@@ -5,7 +5,6 @@
 ## ✨ 核心特性
 
 - **Agentic RAG**: 采用 ReAct 范式（Think-Act-Observe），Agent 可自主决策调用搜索工具或匹配工具。
-- **智能匹配 (Intelligent Matching)**: 基于招标需求自动匹配最合适的合同业绩，支持多维度筛选（金额、日期、项目类型）。
 - **向量检索 (Vector Search)**: 使用 `BGE-M3` 模型生成嵌入，基于 `pgvector` 实现高效语义检索。
 - **实时流式响应 (SSE)**: 支持 Server-Sent Events，实时推送 Agent 思考过程、工具调用状态和最终结果。
 - **统一数据架构**: 简化的数据库 Schema，统一管理业绩（Performances）、文档（Documents）和向量数据。
@@ -85,24 +84,7 @@ python -m cli.main chat
 ```
 
 - 输入问题，例如："帮我找一下最近金额大于100万的软件开发业绩"
-- Agent 会自动拆解任务，调用 `match_tender` 或 `search_knowledge_base` 工具。
-
-### 📑 业绩管理
-
-```bash
-# 导入业绩数据
-python -m cli.main performance import --file samples/performances.json
-
-# 查询业绩
-python -m cli.main performance list --limit 5
-```
-
-### 🔍 智能匹配
-
-```bash
-# 实时流式匹配 (Stream Mode)
-python -m cli.main matching match --tender-id 1 --top-k 3 --stream
-```
+- Agent 会自动拆解任务，调用 `search_knowledge_base` 工具。
 
 ## 📂 目录结构
 
@@ -115,7 +97,6 @@ universal-rag/
 │   ├── agent_service.py    # Agent 循环与状态机
 │   ├── tool_registry.py    # 工具注册中心
 │   ├── tools/              # 具体工具实现 (MatchTool, RAGTool)
-│   ├── matching_service.py # 智能匹配逻辑
 │   └── vector_service.py   # 向量检索服务
 ├── sql/                # 数据库 SQL 脚本
 │   ├── schema.sql          # 完整数据库结构

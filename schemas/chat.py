@@ -62,12 +62,10 @@ class ChatCitation(BaseModel):
     """
 
     document_id: str | None = Field(None, description="文档ID")
+    node_id: int | None = Field(None, description="节点ID")
     filename: str | None = Field(None, description="文件名")
-    chunk_index: int | None = Field(None, description="文档片段编号")
     preview: str | None = Field(None, description="引用摘要")
     score: float | None = Field(None, description="相关度分数")
-    source_id: str | None = Field(None, description="旧版文档ID")
-    node_id: int | None = Field(None, description="旧版片段ID")
     path: list[str] = Field(default_factory=list, description="文档路径")
 
     model_config = ConfigDict(extra="forbid")

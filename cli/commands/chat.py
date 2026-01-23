@@ -97,7 +97,8 @@ def _get_json_list(url: str) -> list[dict[str, str | int | None]]:
 def _format_citation_line(index: int, citation: dict[str, object]) -> str:
     filename = citation.get("filename") or citation.get("file_name")
     if not filename:
-        filename = citation.get("source_title") or citation.get("source_id") or "unknown"
+        document_id = citation.get("document_id")
+        filename = str(document_id) if document_id is not None else "unknown"
     preview = citation.get("preview")
     preview_text = None
     if isinstance(preview, str):

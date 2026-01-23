@@ -27,13 +27,12 @@ class QACitation(BaseModel):
     引用来源
     """
 
-    source_id: str
-    chunk_id: int
+    document_id: str
+    node_id: int
+    filename: str | None = None
+    preview: str | None = None
     score: float
-    source_title: str | None = None
-    file_name: str | None = None
     path: list[str] = Field(default_factory=list)
-    party_a_name: str | None = None
 
     model_config = ConfigDict(extra="forbid")
 

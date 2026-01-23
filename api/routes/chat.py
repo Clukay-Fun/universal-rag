@@ -57,6 +57,55 @@ def _build_preview(text: str, limit: int = 50) -> str:
 
 
 # ============================================
+# region _normalize_citation
+# ============================================
+def _normalize_citation(payload: dict[str, object]) -> ChatCitation:
+    document_id = payload.get("document_id") or payload.get("source_id")
+    document_id_value = str(document_id) if document_id is not None else None
+
+    node_id = payload.get("node_id")
+    if node_id is None:
+        node_id = payload.get("chunk_index")
+    if node_id is None:
+        node_id = payload.get("chunk_id")
+    node_id_value: int | None = None
+    if isinstance(node_id, int):
+        node_id_value = node_id
+    elif isinstance(node_id, str) and node_id.isdigit():
+        node_id_value = int(node_id)
+
+    filename = payload.get("filename") or payload.get("file_name")
+    filename_value = filename if isinstance(filename, str) else None
+
+    preview = payload.get("preview")
+    preview_value = preview if isinstance(preview, str) else None
+
+    score = payload.get("score")
+    score_value: float | None = None
+    if isinstance(score, (int, float)):
+        score_value = float(score)
+    elif isinstance(score, str):
+        try:
+            score_value = float(score)
+        except ValueError:
+            score_value = None
+
+    path = payload.get("path")
+    path_value = [str(item) for item in path] if isinstance(path, list) else []
+
+    return ChatCitation(
+        document_id=document_id_value,
+        node_id=node_id_value,
+        filename=filename_value,
+        preview=preview_value,
+        score=score_value,
+        path=path_value,
+    )
+# endregion
+# ============================================
+
+
+# ============================================
 # region list_chat_sessions
 # ============================================
 @router.get("/sessions", response_model=list[ChatSessionItem])
@@ -134,7 +183,7 @@ def get_chat_history(session_id: str) -> ChatHistoryResponse:
         if isinstance(citations, list):
             for cite in citations:
                 if isinstance(cite, dict):
-                    citation_items.append(ChatCitation(**cite))
+                    citation_items.append(_normalize_citation(cite))
         messages.append(
             ChatMessageItem(
                 message_id=message_id,

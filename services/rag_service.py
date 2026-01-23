@@ -34,6 +34,18 @@ def _fetch_document_meta(conn: Connection, doc_id: int) -> tuple[str | None, str
 
 
 # ============================================
+# region _build_preview
+# ============================================
+def _build_preview(text: str, limit: int = 50) -> str:
+    compact = " ".join(text.split())
+    if len(compact) <= limit:
+        return compact
+    return f"{compact[:limit]}..."
+# endregion
+# ============================================
+
+
+# ============================================
 # region build_answer
 # ============================================
 def build_answer(conn: Connection, question: str, top_k: int, doc_id: int | None) -> QAResponse:
@@ -60,22 +72,20 @@ def build_answer(conn: Connection, question: str, top_k: int, doc_id: int | None
         title = hit[2]
         content = hit[3]
         path = hit[4]
-        party_a_name = hit[5]
         score = float(hit[7])
 
         if hit_doc_id not in meta_cache:
             meta_cache[hit_doc_id] = _fetch_document_meta(conn, hit_doc_id)
-        doc_title, file_name = meta_cache[hit_doc_id]
+        _, file_name = meta_cache[hit_doc_id]
 
         citations.append(
             QACitation(
-                source_id=str(hit_doc_id),
-                chunk_id=node_id,
+                document_id=str(hit_doc_id),
+                node_id=node_id,
+                filename=file_name,
+                preview=_build_preview(content),
                 score=score,
-                source_title=doc_title or title,
-                file_name=file_name,
                 path=path,
-                party_a_name=party_a_name,
             )
         )
 
@@ -138,22 +148,20 @@ def retrieve_with_context(
         title = hit[2]
         content = hit[3]
         path = hit[4]
-        party_a_name = hit[5]
         score = float(hit[7])
 
         if hit_doc_id not in meta_cache:
             meta_cache[hit_doc_id] = _fetch_document_meta(conn, hit_doc_id)
-        doc_title, file_name = meta_cache[hit_doc_id]
+        _, file_name = meta_cache[hit_doc_id]
 
         citations.append(
             QACitation(
-                source_id=str(hit_doc_id),
-                chunk_id=node_id,
+                document_id=str(hit_doc_id),
+                node_id=node_id,
+                filename=file_name,
+                preview=_build_preview(content),
                 score=score,
-                source_title=doc_title or title,
-                file_name=file_name,
                 path=path,
-                party_a_name=party_a_name,
             )
         )
 

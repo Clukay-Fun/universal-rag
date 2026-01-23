@@ -14,20 +14,12 @@ from dotenv import load_dotenv
 
 import typer
 
-from cli.commands.enterprise import app as enterprise_app
-from cli.commands.performance import app as performance_app
-from cli.commands.lawyer import app as lawyer_app
 from cli.commands.chat import app as chat_app
-from cli.commands.matching import app as matching_app
 
 load_dotenv(override=True)
 
 app = typer.Typer(help="Universal RAG CLI")
-app.add_typer(enterprise_app, name="enterprise")
-app.add_typer(performance_app, name="performance")
-app.add_typer(lawyer_app, name="lawyer")
 app.add_typer(chat_app, name="chat")
-app.add_typer(matching_app, name="matching")
 
 # ============================================
 # region main

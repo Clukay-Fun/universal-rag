@@ -2,18 +2,28 @@
 # 通用 RAG 知识库协作指南（中文）
 
 ## 项目定位
-- 目标：通用性 RAG 知识库（后端 + 终端对话）
+- 目标：**通用 RAG 内核**，支持多助手动态接入各自数据源
 - 关键体验：SSE 实时展示 Agent 状态
 - 默认服务地址：http://localhost:8001/
+
+## 架构概述
+```
+Universal RAG Core
+├── 通用表 (documents, document_nodes, chat_*)
+├── 助手配置 (assistants, assistant_datasources)
+├── 通用工具 (search_knowledge_base)
+└── 动态数据源连接机制
+    ▼ 外接
+  投标助手 DB / 法律助手 DB / 其他助手 DB
+```
 
 ## 模块与功能
 - 文档解析：Word -> MarkItDown，保留结构
 - 知识库：AI 解析章节层级，生成 Node 树
 - 向量索引：pgvector 存储，BGE-M3 嵌入
 - RAG 问答：引用来源的智能问答
-- 业绩管理：合同信息提取（视觉 + 结构化）
-- 数据库存储：PostgreSQL 存结构化 + 图片
-- 智能匹配：根据招标要求筛选业绩
+- 助手管理：多助手配置与数据源隔离
+- 数据库存储：PostgreSQL + pgvector 一体化
 
 ## 固定依赖（必须使用）
 - 文档解析：MarkItDown、python-docx
@@ -53,7 +63,7 @@
 - 核心逻辑：`Think-Act-Observe` 循环 (`services/agent_service.py`)
 - 状态机流转：
   - `THINKING`: 规划下一步或分析结果
-  - `EXECUTING`: 调用具体工具 (MatchTender / RAGSearch)
+  - `EXECUTING`: 调用具体工具 (RAGSearch)
   - `DONE`: 生成最终回答
   - `ERROR`: 异常捕获与熔断
 - 安全机制：
@@ -66,7 +76,6 @@
   - `BaseTool`: Pydantic 输入验证，统一 run 接口
   - `ToolRegistry`: 装饰器 `@register_tool` 自动注册
 - 已实现工具：
-  - `match_tender`: 智能匹配招标需求与业绩合同
   - `search_knowledge_base`: RAG 向量检索知识库
 - 扩展指南：
   1. 继承 `BaseTool`
@@ -94,8 +103,8 @@
   - GET /chat/sessions/{session_id}/history
 - SSE 事件类型：status / chunk / message / done / error
 - 历史读取：先查 20 条，再按 2000 字符阈值截断（保持消息完整）
-- 引用落库：document_id / filename / chunk_index / preview / score / path
-- CLI 展示引用建议：filename + preview + score（不展示 chunk_index）
+- 引用落库：document_id / node_id / filename / preview / score / path
+- CLI 展示引用建议：filename + preview + score（不展示 node_id）
 
 ## 开发约定（强制）
 - Python 3.11+；依赖管理：requirements.txt
@@ -187,10 +196,6 @@ python -m cli.main chat
 - **RAG 检索**：
   > "查找关于诉讼的合同条款"
   - 预期：调用 `search_knowledge_base` -> 返回条款细节。
-
-- **智能匹配**：
-  > "为招标需求 2 匹配合适的业绩"
-  - 预期：调用 `match_tender` -> 返回匹配的合同列表及得分。
 
 - **混合推理**：
   > "查找最近的诉讼合同，并总结它们的特点"

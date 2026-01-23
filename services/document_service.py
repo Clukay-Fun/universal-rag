@@ -22,7 +22,6 @@ from psycopg import Connection
 from config.settings import get_settings
 from schemas.document import DocumentNode, DocumentParseResponse, DocumentParseStats
 from services.model_service import extract_json, structure_document
-from services.performance_service import upsert_performance_from_document
 
 logger = logging.getLogger(__name__)
 
@@ -486,8 +485,6 @@ def parse_document(
     party_a_name = None
     party_a_source = None
     party_a_credit_code = None
-    performance_id = None
-    performance_error = None
 
     if use_model_structure:
         try:
@@ -542,13 +539,6 @@ def parse_document(
             structure_result,
             structure_error,
         )
-        performance_id, performance_error = upsert_performance_from_document(
-            conn,
-            doc_id,
-            file_name,
-            markdown,
-            party_a_name,
-        )
 
     stats = DocumentParseStats(
         node_count=len(nodes),
@@ -568,8 +558,6 @@ def parse_document(
         structure_error=structure_error,
         nodes=nodes,
         stats=stats,
-        performance_id=performance_id,
-        performance_error=performance_error,
     )
 # endregion
 # ============================================
