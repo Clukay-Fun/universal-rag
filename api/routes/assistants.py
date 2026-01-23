@@ -1,31 +1,34 @@
 """
-描述: 助手管理 API 路由
-主要功能:
-    - 助手 CRUD 接口
-    - 数据源管理接口
-依赖: FastAPI, assistant_service
+Description: Agent management API routes
+Features:
+    - Agent CRUD endpoints
+    - Datasource management endpoints
+Dependencies: FastAPI, assistant_service
 """
 
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
+from pydantic import BaseModel
+from typing import Any
 
 from services.assistant_service import (
-    AssistantService,
-    AssistantCreate,
-    AssistantUpdate,
-    AssistantResponse,
+    AgentService,
+    AgentCreate,
+    AgentUpdate,
+    AgentResponse,
     DatasourceService,
     DatasourceCreate,
     DatasourceResponse,
 )
+from services.datasource_service import DatasourceConnectionService
 
 
 # ============================================
-# region Router 定义
+# region Router Definition
 # ============================================
 
-router = APIRouter(prefix="/assistants", tags=["助手管理"])
+router = APIRouter(prefix="/agents", tags=["Agent Management"])
 
 
 # endregion
@@ -33,55 +36,72 @@ router = APIRouter(prefix="/assistants", tags=["助手管理"])
 
 
 # ============================================
-# region 助手 CRUD
+# region Pydantic Models
 # ============================================
 
-@router.post("", response_model=AssistantResponse, status_code=status.HTTP_201_CREATED)
-async def create_assistant(data: AssistantCreate):
-    """
-    创建新助手
-    """
-    return await AssistantService.create(data)
+class QueryRequest(BaseModel):
+    """Query request"""
+    query: str
+    params: list = []
 
 
-@router.get("", response_model=list[AssistantResponse])
-async def list_assistants(only_active: bool = True):
-    """
-    列出所有助手
-    """
-    return await AssistantService.list_all(only_active)
+class QueryResponse(BaseModel):
+    """Query response"""
+    success: bool
+    data: list[dict[str, Any]] = []
+    error: str = ""
 
 
-@router.get("/{assistant_id}", response_model=AssistantResponse)
-async def get_assistant(assistant_id: UUID):
-    """
-    获取助手详情
-    """
-    assistant = await AssistantService.get_by_id(assistant_id)
-    if not assistant:
-        raise HTTPException(status_code=404, detail="助手不存在")
-    return assistant
+class ConnectionTestResponse(BaseModel):
+    """Connection test response"""
+    success: bool
+    message: str
 
 
-@router.put("/{assistant_id}", response_model=AssistantResponse)
-async def update_assistant(assistant_id: UUID, data: AssistantUpdate):
-    """
-    更新助手
-    """
-    assistant = await AssistantService.update(assistant_id, data)
-    if not assistant:
-        raise HTTPException(status_code=404, detail="助手不存在")
-    return assistant
+# endregion
+# ============================================
 
 
-@router.delete("/{assistant_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_assistant(assistant_id: UUID):
-    """
-    删除助手
-    """
-    deleted = await AssistantService.delete(assistant_id)
+# ============================================
+# region Agent CRUD
+# ============================================
+
+@router.post("", response_model=AgentResponse, status_code=status.HTTP_201_CREATED)
+async def create_agent(data: AgentCreate):
+    """Create new agent"""
+    return await AgentService.create(data)
+
+
+@router.get("", response_model=list[AgentResponse])
+async def list_agents(only_active: bool = True):
+    """List all agents"""
+    return await AgentService.list_all(only_active)
+
+
+@router.get("/{agent_id}", response_model=AgentResponse)
+async def get_agent(agent_id: UUID):
+    """Get agent details"""
+    agent = await AgentService.get_by_id(agent_id)
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return agent
+
+
+@router.put("/{agent_id}", response_model=AgentResponse)
+async def update_agent(agent_id: UUID, data: AgentUpdate):
+    """Update agent"""
+    agent = await AgentService.update(agent_id, data)
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return agent
+
+
+@router.delete("/{agent_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_agent(agent_id: UUID):
+    """Delete agent"""
+    deleted = await AgentService.delete(agent_id)
     if not deleted:
-        raise HTTPException(status_code=400, detail="无法删除助手（默认助手不可删除）")
+        raise HTTPException(status_code=400, detail="Cannot delete agent (default agent cannot be deleted)")
 
 
 # endregion
@@ -89,38 +109,66 @@ async def delete_assistant(assistant_id: UUID):
 
 
 # ============================================
-# region 数据源管理
+# region Datasource Management
 # ============================================
 
-@router.post("/{assistant_id}/datasources", response_model=DatasourceResponse, status_code=status.HTTP_201_CREATED)
-async def add_datasource(assistant_id: UUID, data: DatasourceCreate):
-    """
-    为助手添加数据源
-    """
-    # 验证助手存在
-    assistant = await AssistantService.get_by_id(assistant_id)
-    if not assistant:
-        raise HTTPException(status_code=404, detail="助手不存在")
+@router.post("/{agent_id}/datasources", response_model=DatasourceResponse, status_code=status.HTTP_201_CREATED)
+async def add_datasource(agent_id: UUID, data: DatasourceCreate):
+    """Add datasource to agent"""
+    agent = await AgentService.get_by_id(agent_id)
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
     
-    return await DatasourceService.create(assistant_id, data)
+    return await DatasourceService.create(agent_id, data)
 
 
-@router.get("/{assistant_id}/datasources", response_model=list[DatasourceResponse])
-async def list_datasources(assistant_id: UUID):
-    """
-    列出助手的所有数据源
-    """
-    return await DatasourceService.list_by_assistant(assistant_id)
+@router.get("/{agent_id}/datasources", response_model=list[DatasourceResponse])
+async def list_datasources(agent_id: UUID):
+    """List all datasources for agent"""
+    return await DatasourceService.list_by_agent(agent_id)
 
 
 @router.delete("/datasources/{datasource_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_datasource(datasource_id: UUID):
-    """
-    删除数据源
-    """
+    """Delete datasource"""
     deleted = await DatasourceService.delete(datasource_id)
     if not deleted:
-        raise HTTPException(status_code=404, detail="数据源不存在")
+        raise HTTPException(status_code=404, detail="Datasource not found")
+
+
+# endregion
+# ============================================
+
+
+# ============================================
+# region Datasource Connection & Query
+# ============================================
+
+@router.post("/datasources/{datasource_id}/test", response_model=ConnectionTestResponse)
+async def test_datasource_connection(datasource_id: UUID):
+    """Test datasource connection"""
+    result = DatasourceConnectionService.test_connection(datasource_id)
+    return ConnectionTestResponse(**result)
+
+
+@router.get("/datasources/{datasource_id}/tables", response_model=list[str])
+async def list_datasource_tables(datasource_id: UUID):
+    """List tables in datasource"""
+    return DatasourceConnectionService.list_tables(datasource_id)
+
+
+@router.post("/datasources/{datasource_id}/query", response_model=QueryResponse)
+async def execute_datasource_query(datasource_id: UUID, request: QueryRequest):
+    """Execute query on datasource"""
+    try:
+        data = DatasourceConnectionService.execute_query(
+            datasource_id, 
+            request.query, 
+            tuple(request.params) if request.params else None
+        )
+        return QueryResponse(success=True, data=data)
+    except Exception as e:
+        return QueryResponse(success=False, error=str(e))
 
 
 # endregion

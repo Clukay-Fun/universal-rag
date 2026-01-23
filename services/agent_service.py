@@ -1,11 +1,11 @@
 """
-描述: Agent 核心服务
-主要功能:
-    - 执行 Agent Loop (Think-Act-Observe)
-    - 工具调用与结果处理
-    - SSE 流式状态推送
-    - 支持多助手上下文
-依赖: model_service, tool_registry, sse_utils, assistant_service
+Description: Agent core service
+Features:
+    - Execute Agent Loop (Think-Act-Observe)
+    - Tool invocation and result handling
+    - SSE streaming state push
+    - Multi-agent context support
+Dependencies: model_service, tool_registry, sse_utils, assistant_service
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from uuid import UUID
 from services.model_service import chat
 from services.sse_utils import AgentState, sse_status, sse_chunk, sse_error, sse_done
 from services.tool_registry import ToolRegistry
-from services.assistant_service import AssistantService
+from services.assistant_service import AgentService
 # Ensure tools are registered
 import services.tools  # noqa
 
@@ -29,23 +29,23 @@ logger = logging.getLogger(__name__)
 # ============================================
 # region Helper Functions
 # ============================================
-async def _load_system_prompt(assistant_id: Optional[UUID] = None) -> str:
+async def _load_system_prompt(agent_id: Optional[UUID] = None) -> str:
     """
-    加载 system prompt，支持助手自定义 prompt
+    Load system prompt, supports agent custom prompt
     
-    参数:
-        assistant_id: 助手 UUID，为 None 时使用默认助手
-    返回:
-        完整的 system prompt
+    Args:
+        agent_id: Agent UUID, uses default agent if None
+    Returns:
+        Complete system prompt
     """
-    # 动态加载所有工具的 Schema
+    # Dynamically load all tool schemas
     schemas = ToolRegistry.get_all_schemas()
     schema_json = json.dumps(schemas, ensure_ascii=False, indent=2)
     
-    # 获取助手自定义 prompt
+    # Get agent custom prompt
     custom_prompt = ""
-    if assistant_id:
-        custom_prompt = await AssistantService.get_system_prompt(assistant_id)
+    if agent_id:
+        custom_prompt = await AgentService.get_system_prompt(agent_id)
     
     try:
         with open("prompts/agent/system.md", "r", encoding="utf-8") as f:
@@ -99,21 +99,21 @@ def _parse_tool_call(content: str) -> dict[str, Any] | None:
 async def run_agent_loop(
     session_id: str,
     user_content: str,
-    history: list[dict[str, str]],  # 上下文历史
+    history: list[dict[str, str]],  # Context history
     max_steps: int = 10,
-    assistant_id: Optional[UUID] = None  # 助手 ID
+    agent_id: Optional[UUID] = None  # Agent ID
 ) -> AsyncGenerator[str, None]:
     """
-    执行 Agent 思考-行动循环
+    Execute Agent Think-Act-Observe loop
     
     Args:
-        session_id: 会话ID
-        user_content: 用户最新输入
-        history: 历史消息列表 [{"role": "user", "content": ...}, ...]
+        session_id: Session ID
+        user_content: User's latest input
+        history: History message list
     """
     
-    # 1. 初始化（异步加载助手 prompt）
-    system_prompt = await _load_system_prompt(assistant_id)
+    # 1. Initialize (async load agent prompt)
+    system_prompt = await _load_system_prompt(agent_id)
     messages = [{"role": "system", "content": system_prompt}]
     messages.extend(history)
     messages.append({"role": "user", "content": user_content})

@@ -1,37 +1,36 @@
 """
-描述: 助手管理服务
-主要功能:
-    - 助手 CRUD 操作
-    - 数据源配置管理
-依赖: db.connection, pydantic
+Description: Agent management service
+Features:
+    - Agent CRUD operations
+    - Datasource configuration management
+Dependencies: db.connection, pydantic
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Optional, cast
+from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
-from psycopg import Connection
 
 from db.connection import get_connection
 
 
 # ============================================
-# region Pydantic 模型
+# region Pydantic Models
 # ============================================
 
-class AssistantCreate(BaseModel):
-    """创建助手请求"""
+class AgentCreate(BaseModel):
+    """Create agent request"""
     name: str = Field(..., max_length=100)
     description: Optional[str] = None
     system_prompt: Optional[str] = None
     config: dict = Field(default_factory=dict)
 
 
-class AssistantUpdate(BaseModel):
-    """更新助手请求"""
+class AgentUpdate(BaseModel):
+    """Update agent request"""
     name: Optional[str] = Field(None, max_length=100)
     description: Optional[str] = None
     system_prompt: Optional[str] = None
@@ -39,9 +38,9 @@ class AssistantUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
-class AssistantResponse(BaseModel):
-    """助手响应"""
-    assistant_id: UUID
+class AgentResponse(BaseModel):
+    """Agent response"""
+    agent_id: UUID
     name: str
     description: Optional[str]
     system_prompt: Optional[str]
@@ -50,7 +49,7 @@ class AssistantResponse(BaseModel):
 
 
 class DatasourceCreate(BaseModel):
-    """创建数据源请求"""
+    """Create datasource request"""
     name: str = Field(..., max_length=100)
     ds_type: str = Field(..., max_length=50)  # postgresql, mysql, api
     connection_config: dict
@@ -58,9 +57,9 @@ class DatasourceCreate(BaseModel):
 
 
 class DatasourceResponse(BaseModel):
-    """数据源响应"""
+    """Datasource response"""
     datasource_id: UUID
-    assistant_id: UUID
+    agent_id: UUID
     name: str
     ds_type: str
     table_schema: Optional[dict]
@@ -72,160 +71,111 @@ class DatasourceResponse(BaseModel):
 
 
 # ============================================
-# region Response Builders
-# ============================================
-def _build_assistant_response(row: tuple[object, ...]) -> AssistantResponse:
-    assistant_uuid = UUID(str(row[0]))
-    name = str(row[1])
-    description = str(row[2]) if row[2] is not None else None
-    system_prompt = str(row[3]) if row[3] is not None else None
-    config = row[4] if isinstance(row[4], dict) else {}
-    is_active = bool(row[5])
-    return AssistantResponse(
-        assistant_id=assistant_uuid,
-        name=name,
-        description=description,
-        system_prompt=system_prompt,
-        config=config,
-        is_active=is_active,
-    )
-
-
-def _build_datasource_response(row: tuple[object, ...]) -> DatasourceResponse:
-    datasource_id = UUID(str(row[0]))
-    assistant_uuid = UUID(str(row[1]))
-    name = str(row[2])
-    ds_type = str(row[3])
-    table_schema = row[4] if isinstance(row[4], dict) else None
-    is_active = bool(row[5])
-    return DatasourceResponse(
-        datasource_id=datasource_id,
-        assistant_id=assistant_uuid,
-        name=name,
-        ds_type=ds_type,
-        table_schema=table_schema,
-        is_active=is_active,
-    )
-# endregion
+# region AgentService
 # ============================================
 
-
-# ============================================
-# region AssistantService
-# ============================================
-
-class AssistantService:
+class AgentService:
     """
-    助手管理服务
+    Agent management service
     
-    提供助手的创建、查询、更新、删除操作。
+    Provides CRUD operations for agents.
     """
     
     logger = logging.getLogger(__name__)
     
-    # 默认助手 ID
-    DEFAULT_ASSISTANT_ID = UUID("00000000-0000-0000-0000-000000000001")
+    # Default agent ID
+    DEFAULT_AGENT_ID = UUID("00000000-0000-0000-0000-000000000001")
 
     @classmethod
-    async def create(cls, data: AssistantCreate) -> AssistantResponse:
-        """
-        创建新助手
-        
-        参数:
-            data: 助手创建数据
-        返回:
-            创建的助手信息
-        """
-        with get_connection() as conn:
-            db_conn = cast(Connection, conn)
-            try:
-                with db_conn.cursor() as cur:
-                    cur.execute(
-                        """
-                        INSERT INTO assistants (name, description, system_prompt, config)
-                        VALUES (%s, %s, %s, %s)
-                        RETURNING assistant_id, name, description, system_prompt, config, is_active
-                        """,
-                        (data.name, data.description, data.system_prompt, data.config),
-                    )
-                    row = cur.fetchone()
-                if row is None:
-                    raise RuntimeError("Failed to create assistant")
-                row_value = cast(tuple[object, ...], row)
-                db_conn.commit()
-
-                return _build_assistant_response(row_value)
-            except Exception as exc:
-                db_conn.rollback()
-                cls.logger.error("创建助手失败", exc_info=exc)
-                raise
-
-    @classmethod
-    async def get_by_id(cls, assistant_id: UUID) -> Optional[AssistantResponse]:
-        """
-        根据 ID 获取助手
-        
-        参数:
-            assistant_id: 助手 UUID
-        返回:
-            助手信息或 None
-        """
-        with get_connection() as conn:
-            db_conn = cast(Connection, conn)
-            with db_conn.cursor() as cur:
+    async def create(cls, data: AgentCreate) -> AgentResponse:
+        """Create new agent"""
+        conn = get_connection()
+        try:
+            with conn.cursor() as cur:
                 cur.execute(
                     """
-                    SELECT assistant_id, name, description, system_prompt, config, is_active
-                    FROM assistants
-                    WHERE assistant_id = %s
+                    INSERT INTO agents (name, description, system_prompt, config)
+                    VALUES (%s, %s, %s, %s)
+                    RETURNING agent_id, name, description, system_prompt, config, is_active
                     """,
-                    (str(assistant_id),),
+                    (data.name, data.description, data.system_prompt, data.config)
                 )
                 row = cur.fetchone()
-
-        if not row:
-            return None
-
-        return _build_assistant_response(cast(tuple[object, ...], row))
+                conn.commit()
+                
+                return AgentResponse(
+                    agent_id=row[0],
+                    name=row[1],
+                    description=row[2],
+                    system_prompt=row[3],
+                    config=row[4] or {},
+                    is_active=row[5]
+                )
+        except Exception as e:
+            conn.rollback()
+            cls.logger.error("Failed to create agent: %s", e)
+            raise
 
     @classmethod
-    async def list_all(cls, only_active: bool = True) -> list[AssistantResponse]:
-        """
-        列出所有助手
-        
-        参数:
-            only_active: 是否只返回激活的助手
-        返回:
-            助手列表
-        """
-        with get_connection() as conn:
-            db_conn = cast(Connection, conn)
-            with db_conn.cursor() as cur:
-                query = """
-                    SELECT assistant_id, name, description, system_prompt, config, is_active
-                    FROM assistants
+    async def get_by_id(cls, agent_id: UUID) -> Optional[AgentResponse]:
+        """Get agent by ID"""
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute(
                 """
-                if only_active:
-                    query += " WHERE is_active = TRUE"
-                query += " ORDER BY created_at DESC"
-
-                cur.execute(query)
-                rows = cur.fetchall()
-
-        return [_build_assistant_response(cast(tuple[object, ...], row)) for row in rows]
+                SELECT agent_id, name, description, system_prompt, config, is_active
+                FROM agents
+                WHERE agent_id = %s
+                """,
+                (str(agent_id),)
+            )
+            row = cur.fetchone()
+            
+            if not row:
+                return None
+            
+            return AgentResponse(
+                agent_id=row[0],
+                name=row[1],
+                description=row[2],
+                system_prompt=row[3],
+                config=row[4] or {},
+                is_active=row[5]
+            )
 
     @classmethod
-    async def update(cls, assistant_id: UUID, data: AssistantUpdate) -> Optional[AssistantResponse]:
-        """
-        更新助手
+    async def list_all(cls, only_active: bool = True) -> list[AgentResponse]:
+        """List all agents"""
+        conn = get_connection()
+        with conn.cursor() as cur:
+            query = """
+                SELECT agent_id, name, description, system_prompt, config, is_active
+                FROM agents
+            """
+            if only_active:
+                query += " WHERE is_active = TRUE"
+            query += " ORDER BY created_at DESC"
+            
+            cur.execute(query)
+            rows = cur.fetchall()
+            
+            return [
+                AgentResponse(
+                    agent_id=row[0],
+                    name=row[1],
+                    description=row[2],
+                    system_prompt=row[3],
+                    config=row[4] or {},
+                    is_active=row[5]
+                )
+                for row in rows
+            ]
+
+    @classmethod
+    async def update(cls, agent_id: UUID, data: AgentUpdate) -> Optional[AgentResponse]:
+        """Update agent"""
+        conn = get_connection()
         
-        参数:
-            assistant_id: 助手 UUID
-            data: 更新数据
-        返回:
-            更新后的助手信息或 None
-        """
-        # 构建动态 UPDATE 语句
         updates = []
         values = []
         
@@ -246,83 +196,72 @@ class AssistantService:
             values.append(data.is_active)
         
         if not updates:
-            return await cls.get_by_id(assistant_id)
+            return await cls.get_by_id(agent_id)
         
         updates.append("updated_at = NOW()")
-        values.append(str(assistant_id))
+        values.append(str(agent_id))
         
-        with get_connection() as conn:
-            db_conn = cast(Connection, conn)
-            try:
-                with db_conn.cursor() as cur:
-                    cur.execute(
-                        f"""
-                        UPDATE assistants
-                        SET {", ".join(updates)}
-                        WHERE assistant_id = %s
-                        RETURNING assistant_id, name, description, system_prompt, config, is_active
-                        """,
-                        values,
-                    )
-                    row = cur.fetchone()
-                db_conn.commit()
-
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    UPDATE agents
+                    SET {", ".join(updates)}
+                    WHERE agent_id = %s
+                    RETURNING agent_id, name, description, system_prompt, config, is_active
+                    """,
+                    values
+                )
+                row = cur.fetchone()
+                conn.commit()
+                
                 if not row:
                     return None
-
-                return _build_assistant_response(cast(tuple[object, ...], row))
-            except Exception as exc:
-                db_conn.rollback()
-                cls.logger.error("更新助手失败", exc_info=exc)
-                raise
+                
+                return AgentResponse(
+                    agent_id=row[0],
+                    name=row[1],
+                    description=row[2],
+                    system_prompt=row[3],
+                    config=row[4] or {},
+                    is_active=row[5]
+                )
+        except Exception as e:
+            conn.rollback()
+            cls.logger.error("Failed to update agent: %s", e)
+            raise
 
     @classmethod
-    async def delete(cls, assistant_id: UUID) -> bool:
-        """
-        删除助手
-        
-        参数:
-            assistant_id: 助手 UUID
-        返回:
-            是否删除成功
-        """
-        # 禁止删除默认助手
-        if assistant_id == cls.DEFAULT_ASSISTANT_ID:
-            cls.logger.warning("尝试删除默认助手，已拒绝")
+    async def delete(cls, agent_id: UUID) -> bool:
+        """Delete agent"""
+        # Cannot delete default agent
+        if agent_id == cls.DEFAULT_AGENT_ID:
+            cls.logger.warning("Attempted to delete default agent, rejected")
             return False
         
-        with get_connection() as conn:
-            db_conn = cast(Connection, conn)
-            try:
-                with db_conn.cursor() as cur:
-                    cur.execute(
-                        "DELETE FROM assistants WHERE assistant_id = %s",
-                        (str(assistant_id),),
-                    )
-                    deleted = cur.rowcount > 0
-                db_conn.commit()
+        conn = get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "DELETE FROM agents WHERE agent_id = %s",
+                    (str(agent_id),)
+                )
+                deleted = cur.rowcount > 0
+                conn.commit()
                 return deleted
-            except Exception as exc:
-                db_conn.rollback()
-                cls.logger.error("删除助手失败", exc_info=exc)
-                raise
+        except Exception as e:
+            conn.rollback()
+            cls.logger.error("Failed to delete agent: %s", e)
+            raise
 
     @classmethod
-    async def get_system_prompt(cls, assistant_id: UUID) -> str:
-        """
-        获取助手的 system prompt
+    async def get_system_prompt(cls, agent_id: UUID) -> str:
+        """Get agent's system prompt"""
+        agent = await cls.get_by_id(agent_id)
+        if agent and agent.system_prompt:
+            return agent.system_prompt
         
-        参数:
-            assistant_id: 助手 UUID
-        返回:
-            system prompt 内容
-        """
-        assistant = await cls.get_by_id(assistant_id)
-        if assistant and assistant.system_prompt:
-            return assistant.system_prompt
-        
-        # 返回默认 prompt
-        return "你是一个专业的知识库问答助手。请根据用户问题，结合检索到的知识库内容，给出准确、有帮助的回答。"
+        return "You are a professional knowledge base assistant. Answer based on retrieved content."
 
 
 # endregion
@@ -335,106 +274,95 @@ class AssistantService:
 
 class DatasourceService:
     """
-    数据源管理服务
+    Datasource management service
     
-    管理助手的外接数据源配置。
+    Manages external datasource configurations for agents.
     """
     
     logger = logging.getLogger(__name__)
 
     @classmethod
-    async def create(cls, assistant_id: UUID, data: DatasourceCreate) -> DatasourceResponse:
-        """
-        为助手添加数据源
-        
-        参数:
-            assistant_id: 助手 UUID
-            data: 数据源配置
-        返回:
-            创建的数据源信息
-        """
-        with get_connection() as conn:
-            db_conn = cast(Connection, conn)
-            try:
-                with db_conn.cursor() as cur:
-                    cur.execute(
-                        """
-                        INSERT INTO assistant_datasources 
-                            (assistant_id, name, ds_type, connection_config, table_schema)
-                        VALUES (%s, %s, %s, %s, %s)
-                        RETURNING datasource_id, assistant_id, name, ds_type, table_schema, is_active
-                        """,
-                        (
-                            str(assistant_id),
-                            data.name,
-                            data.ds_type,
-                            data.connection_config,
-                            data.table_schema,
-                        ),
-                    )
-                    row = cur.fetchone()
-                if row is None:
-                    raise RuntimeError("Failed to create datasource")
-                row_value = cast(tuple[object, ...], row)
-                db_conn.commit()
-
-                return _build_datasource_response(row_value)
-            except Exception as exc:
-                db_conn.rollback()
-                cls.logger.error("创建数据源失败", exc_info=exc)
-                raise
-
-    @classmethod
-    async def list_by_assistant(cls, assistant_id: UUID) -> list[DatasourceResponse]:
-        """
-        列出助手的所有数据源
-        
-        参数:
-            assistant_id: 助手 UUID
-        返回:
-            数据源列表
-        """
-        with get_connection() as conn:
-            db_conn = cast(Connection, conn)
-            with db_conn.cursor() as cur:
+    async def create(cls, agent_id: UUID, data: DatasourceCreate) -> DatasourceResponse:
+        """Add datasource to agent"""
+        conn = get_connection()
+        try:
+            with conn.cursor() as cur:
                 cur.execute(
                     """
-                    SELECT datasource_id, assistant_id, name, ds_type, table_schema, is_active
-                    FROM assistant_datasources
-                    WHERE assistant_id = %s AND is_active = TRUE
-                    ORDER BY created_at
+                    INSERT INTO agent_datasources 
+                        (agent_id, name, ds_type, connection_config, table_schema)
+                    VALUES (%s, %s, %s, %s, %s)
+                    RETURNING datasource_id, agent_id, name, ds_type, table_schema, is_active
                     """,
-                    (str(assistant_id),),
+                    (
+                        str(agent_id),
+                        data.name,
+                        data.ds_type,
+                        data.connection_config,
+                        data.table_schema
+                    )
                 )
-                rows = cur.fetchall()
+                row = cur.fetchone()
+                conn.commit()
+                
+                return DatasourceResponse(
+                    datasource_id=row[0],
+                    agent_id=row[1],
+                    name=row[2],
+                    ds_type=row[3],
+                    table_schema=row[4],
+                    is_active=row[5]
+                )
+        except Exception as e:
+            conn.rollback()
+            cls.logger.error("Failed to create datasource: %s", e)
+            raise
 
-        return [_build_datasource_response(cast(tuple[object, ...], row)) for row in rows]
+    @classmethod
+    async def list_by_agent(cls, agent_id: UUID) -> list[DatasourceResponse]:
+        """List all datasources for agent"""
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT datasource_id, agent_id, name, ds_type, table_schema, is_active
+                FROM agent_datasources
+                WHERE agent_id = %s AND is_active = TRUE
+                ORDER BY created_at
+                """,
+                (str(agent_id),)
+            )
+            rows = cur.fetchall()
+            
+            return [
+                DatasourceResponse(
+                    datasource_id=row[0],
+                    agent_id=row[1],
+                    name=row[2],
+                    ds_type=row[3],
+                    table_schema=row[4],
+                    is_active=row[5]
+                )
+                for row in rows
+            ]
 
     @classmethod
     async def delete(cls, datasource_id: UUID) -> bool:
-        """
-        删除数据源
-        
-        参数:
-            datasource_id: 数据源 UUID
-        返回:
-            是否删除成功
-        """
-        with get_connection() as conn:
-            db_conn = cast(Connection, conn)
-            try:
-                with db_conn.cursor() as cur:
-                    cur.execute(
-                        "DELETE FROM assistant_datasources WHERE datasource_id = %s",
-                        (str(datasource_id),),
-                    )
-                    deleted = cur.rowcount > 0
-                db_conn.commit()
+        """Delete datasource"""
+        conn = get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "DELETE FROM agent_datasources WHERE datasource_id = %s",
+                    (str(datasource_id),)
+                )
+                deleted = cur.rowcount > 0
+                conn.commit()
                 return deleted
-            except Exception as exc:
-                db_conn.rollback()
-                cls.logger.error("删除数据源失败", exc_info=exc)
-                raise
+        except Exception as e:
+            conn.rollback()
+            cls.logger.error("Failed to delete datasource: %s", e)
+            raise
 
 
 # endregion

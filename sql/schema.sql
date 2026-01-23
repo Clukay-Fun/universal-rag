@@ -1,60 +1,60 @@
 -- ============================================
--- Universal RAG 通用内核 - 数据库 Schema
--- 执行: psql -U postgres -d universal-rag -f sql/schema.sql
+-- Universal RAG Core - Database Schema
+-- Run: psql -U postgres -d universal-rag -f sql/schema.sql
 -- ============================================
 
 CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ============================================
--- region 助手配置表
+-- region Agent Configuration Table
 -- ============================================
 
-CREATE TABLE IF NOT EXISTS assistants (
-    assistant_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+CREATE TABLE IF NOT EXISTS agents (
+    agent_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) NOT NULL,
     description TEXT,
-    system_prompt TEXT,           -- 助手专属 system prompt
-    config JSONB DEFAULT '{}',    -- 额外配置
+    system_prompt TEXT,           -- Agent-specific system prompt
+    config JSONB DEFAULT '{}',    -- Additional configuration
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS assistants_name_idx ON assistants(name);
-CREATE INDEX IF NOT EXISTS assistants_is_active_idx ON assistants(is_active);
+CREATE INDEX IF NOT EXISTS agents_name_idx ON agents(name);
+CREATE INDEX IF NOT EXISTS agents_is_active_idx ON agents(is_active);
 
 -- endregion
 -- ============================================
 
 -- ============================================
--- region 助手数据源配置表
+-- region Agent Datasource Configuration Table
 -- ============================================
 
-CREATE TABLE IF NOT EXISTS assistant_datasources (
+CREATE TABLE IF NOT EXISTS agent_datasources (
     datasource_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    assistant_id UUID NOT NULL REFERENCES assistants(assistant_id) ON DELETE CASCADE,
+    agent_id UUID NOT NULL REFERENCES agents(agent_id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
     ds_type VARCHAR(50) NOT NULL, -- 'postgresql', 'mysql', 'api', etc.
-    connection_config JSONB NOT NULL, -- 加密存储连接信息
-    table_schema JSONB,           -- 表结构描述 (供 LLM 理解)
+    connection_config JSONB NOT NULL, -- Encrypted connection info
+    table_schema JSONB,           -- Table structure description (for LLM)
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS assistant_datasources_assistant_id_idx 
-    ON assistant_datasources(assistant_id);
+CREATE INDEX IF NOT EXISTS agent_datasources_agent_id_idx 
+    ON agent_datasources(agent_id);
 
 -- endregion
 -- ============================================
 
 -- ============================================
--- region 文档表 (RAG 知识库)
+-- region Documents Table (RAG Knowledge Base)
 -- ============================================
 
 CREATE TABLE IF NOT EXISTS documents (
     doc_id BIGSERIAL PRIMARY KEY,
-    assistant_id UUID REFERENCES assistants(assistant_id) ON DELETE SET NULL,
+    agent_id UUID REFERENCES agents(agent_id) ON DELETE SET NULL,
     title TEXT,
     file_name TEXT,
     source_type TEXT,
@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS documents (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS documents_assistant_id_idx ON documents(assistant_id);
+CREATE INDEX IF NOT EXISTS documents_agent_id_idx ON documents(agent_id);
 
 CREATE TABLE IF NOT EXISTS document_nodes (
     node_id BIGSERIAL PRIMARY KEY,
@@ -86,13 +86,13 @@ CREATE INDEX IF NOT EXISTS document_nodes_embedding_idx ON document_nodes
 -- ============================================
 
 -- ============================================
--- region 对话会话表
+-- region Chat Sessions Table
 -- ============================================
 
 CREATE TABLE IF NOT EXISTS chat_sessions (
     session_id UUID PRIMARY KEY,
     user_id UUID NULL,
-    assistant_id UUID REFERENCES assistants(assistant_id) ON DELETE SET NULL,
+    agent_id UUID REFERENCES agents(agent_id) ON DELETE SET NULL,
     title TEXT,
     message_count INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT NOW(),
@@ -111,23 +111,23 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 
 CREATE INDEX IF NOT EXISTS chat_messages_session_idx ON chat_messages(session_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS chat_sessions_created_idx ON chat_sessions(created_at);
-CREATE INDEX IF NOT EXISTS chat_sessions_assistant_id_idx ON chat_sessions(assistant_id);
+CREATE INDEX IF NOT EXISTS chat_sessions_agent_id_idx ON chat_sessions(agent_id);
 
 -- endregion
 -- ============================================
 
 -- ============================================
--- region 默认助手初始化
+-- region Default Agent Initialization
 -- ============================================
 
-INSERT INTO assistants (assistant_id, name, description, system_prompt, is_active)
+INSERT INTO agents (agent_id, name, description, system_prompt, is_active)
 VALUES (
     '00000000-0000-0000-0000-000000000001',
-    '默认助手',
-    '通用知识问答助手',
-    '你是一个专业的知识库问答助手。请根据用户问题，结合检索到的知识库内容，给出准确、有帮助的回答。如果无法从知识库找到答案，请诚实告知用户。',
+    'Default Agent',
+    'General knowledge QA agent',
+    'You are a professional knowledge base assistant. Answer based on retrieved content. Be honest if you cannot find the answer.',
     TRUE
-) ON CONFLICT (assistant_id) DO NOTHING;
+) ON CONFLICT (agent_id) DO NOTHING;
 
 -- endregion
 -- ============================================
