@@ -5,6 +5,10 @@
 ## 快速开始
 
 ```bash
+# 0. clone repo
+git clone https://github.com/<owner>/universal-rag.git
+cd universal-rag
+
 # 1. 安装依赖
 pip install -r requirements.txt
 
@@ -176,7 +180,7 @@ universal-rag/
 │   └── routes/
 ├── services/         # 业务逻辑层
 │   ├── agent_service.py      # Agent Loop 核心
-│   ├── assistant_service.py  # 智能体 CRUD
+│   ├── agent_management_service.py  # 智能体 CRUD
 │   ├── datasource_service.py # 动态数据源
 │   └── tools/                # 工具注册
 ├── db/               # 数据库连接
