@@ -2,10 +2,13 @@ fastapi
 uvicorn[standard]
 typer
 psycopg[binary]
+psycopg2-binary
 python-dotenv
 pydantic
+pymysql
 python-docx
 pgvector
+requests
 llama-index
 markitdown
 sse-starlette
