@@ -12,7 +12,7 @@ from api.routes.documents import router as documents_router
 from api.routes.vector import router as vector_router
 from api.routes.rag import router as rag_router
 from api.routes.chat import router as chat_router
-from api.routes.assistants import router as agents_router  # renamed to agents
+from api.routes.agents import router as agents_router
 
 
 # ============================================

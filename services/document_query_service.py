@@ -127,7 +127,7 @@ def get_document_tree(conn: Connection, doc_id: int) -> DocumentTreeNode | None:
 
     title_row = conn.execute(
         """
-        SELECT title, party_a_name FROM documents WHERE doc_id = %s
+        SELECT title, metadata->>'party_a_name' FROM documents WHERE doc_id = %s
         """,
         (doc_id,),
     ).fetchone()
@@ -189,7 +189,7 @@ def search_document_nodes(
     if query_text:
         sql = (
             "SELECT n.doc_id, n.node_id, n.title, n.content, n.path, "
-            "d.party_a_name, d.party_a_credit_code, "
+            "d.metadata->>'party_a_name', d.metadata->>'party_a_credit_code', "
             "ts_rank(to_tsvector('simple', n.content), plainto_tsquery('simple', %s)) AS score "
             "FROM document_nodes n JOIN documents d ON d.doc_id = n.doc_id WHERE "
             f"{where_clause} "
@@ -202,7 +202,7 @@ def search_document_nodes(
     else:
         sql = (
             "SELECT n.doc_id, n.node_id, n.title, n.content, n.path, "
-            "d.party_a_name, d.party_a_credit_code, "
+            "d.metadata->>'party_a_name', d.metadata->>'party_a_credit_code', "
             "NULL AS score "
             "FROM document_nodes n JOIN documents d ON d.doc_id = n.doc_id WHERE "
             f"{where_clause} "

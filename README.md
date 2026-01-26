@@ -1,107 +1,226 @@
-# Universal RAG
+# universal-rag
 
-基于 Agentic RAG 架构的通用检索增强生成系统。集成了向量检索、智能业绩匹配、Agent 工具调用循环以及实时流式响应（SSE）。
+通用 RAG 智能体平台 - 支持多智能体动态接入各自数据源
 
-## ✨ 核心特性
-
-- **Agentic RAG**: 采用 ReAct 范式（Think-Act-Observe），Agent 可自主决策调用搜索工具或匹配工具。
-- **向量检索 (Vector Search)**: 使用 `BGE-M3` 模型生成嵌入，基于 `pgvector` 实现高效语义检索。
-- **实时流式响应 (SSE)**: 支持 Server-Sent Events，实时推送 Agent 思考过程、工具调用状态和最终结果。
-- **统一数据架构**: 简化的数据库 Schema，统一管理业绩（Performances）、文档（Documents）和向量数据。
-
-## 🛠️ 技术栈
-
-- **Backend**: Python 3.10+, FastAPI
-- **Database**: PostgreSQL 15+ (with `pgvector` extension)
-- **LLM Integration**: OpenAI Compatibility Interface (DeepSeek / SiliconFlow / etc.)
-- **CLI**: Typer
-- **Vector Model**: BAAI/bge-m3
-
-## 🚀 快速开始
-
-### 1. 环境准备
-
-确保已安装 Python 3.10+ 和 PostgreSQL 15+（需启用 pgvector）。
+## 快速开始
 
 ```bash
-# 克隆项目
-git clone <repo_url>
-cd universal-rag
-
-# 创建虚拟环境
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-
-# 安装依赖
+# 1. 安装依赖
 pip install -r requirements.txt
-```
 
-### 2. 配置环境变量
-
-复制示例配置并填写密钥：
-
-```bash
+# 2. 配置环境变量
 cp .env.example .env
+# 编辑 .env 设置 DATABASE_URL 等
+
+# 3. 初始化数据库
+psql -U postgres -d your_db -f sql/schema.sql
+
+# 4. 启动服务
+python -m api.main
+# 服务地址: http://localhost:8001
 ```
 
-编辑 `.env` 文件：
-```ini
-DATABASE_URL=postgresql://user:pass@localhost:5432/universal-rag
-MODEL_API_KEY=your_api_key
-MODEL_API_BASE_URL=https://api.siliconflow.cn/v1  # 或其他兼容接口
-EMBEDDING_MODEL=BAAI/bge-m3
+---
+
+## 核心概念
+
+| 概念 | 说明 |
+|------|------|
+| **Agent (智能体)** | 独立的问答助手，拥有专属 system_prompt 和配置 |
+| **Datasource (数据源)** | 智能体可连接的外部数据库 (PostgreSQL/MySQL/API) |
+| **Document (文档)** | RAG 知识库中的文档 |
+| **Chat Session (会话)** | 用户与智能体的对话记录 |
+
+---
+
+## API 参考
+
+### 智能体管理
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `POST` | `/agents` | 创建智能体 |
+| `GET` | `/agents` | 列出所有智能体 |
+| `GET` | `/agents/{agent_id}` | 获取智能体详情 |
+| `PUT` | `/agents/{agent_id}` | 更新智能体 |
+| `DELETE` | `/agents/{agent_id}` | 删除智能体 |
+
+**创建智能体示例：**
+```json
+POST /agents
+{
+  "name": "法律顾问",
+  "description": "专业法律咨询智能体",
+  "system_prompt": "你是一位专业的法律顾问...",
+  "config": {}
+}
 ```
 
-### 3. 数据库初始化
+---
 
-使用统一的 Schema 初始化数据库：
+### 数据源管理
 
-```bash
-# 确保数据库已创建
-createdb universal-rag
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `POST` | `/agents/{agent_id}/datasources` | 添加数据源 |
+| `GET` | `/agents/{agent_id}/datasources` | 列出数据源 |
+| `DELETE` | `/agents/datasources/{datasource_id}` | 删除数据源 |
+| `POST` | `/agents/datasources/{datasource_id}/test` | 测试连接 |
+| `GET` | `/agents/datasources/{datasource_id}/tables` | 列出表 |
+| `POST` | `/agents/datasources/{datasource_id}/query` | 执行查询 |
 
-# 导入表结构
-psql "${DATABASE_URL}" -f sql/schema.sql
+**添加 PostgreSQL 数据源：**
+```json
+POST /agents/{agent_id}/datasources
+{
+  "name": "业务数据库",
+  "ds_type": "postgresql",
+  "connection_config": {
+    "host": "localhost",
+    "port": 5432,
+    "database": "business_db",
+    "user": "postgres",
+    "password": "xxx"
+  }
+}
 ```
 
-### 4. 启动服务
+---
 
-```bash
-# 启动 API 服务 (默认端口 8001)
-uvicorn api.main:app --host 0.0.0.0 --port 8001 --reload
+### 文档管理 (RAG 知识库)
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `POST` | `/documents/upload` | 上传文档 |
+| `GET` | `/documents` | 列出文档 |
+| `DELETE` | `/documents/{doc_id}` | 删除文档 |
+
+---
+
+### 向量检索
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `POST` | `/vector/search` | 向量相似度检索 |
+| `POST` | `/rag/query` | RAG 问答 (带引用) |
+
+**RAG 查询示例：**
+```json
+POST /rag/query
+{
+  "query": "合同违约的法律后果是什么？",
+  "top_k": 5
+}
 ```
 
-## 💻 CLI 使用指南
+---
 
-项目提供了强大的命令行工具，支持所有核心功能。
+### 对话管理
 
-### 🤖 Agent 对话
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `POST` | `/chat/sessions` | 创建会话 |
+| `POST` | `/chat/sessions/{session_id}/messages` | 发送消息 (SSE) |
+| `GET` | `/chat/sessions/{session_id}/history` | 获取历史 |
 
-启动交互式 Agent 对话，支持工具调用：
+---
 
-```bash
-python -m cli.main chat
+## 数据库表结构
+
+```
+agents                 # 智能体配置
+├── agent_id (PK)
+├── name, description
+├── system_prompt      # 专属提示词
+└── config (JSONB)
+
+agent_datasources      # 外接数据源
+├── datasource_id (PK)
+├── agent_id (FK)
+├── ds_type            # postgresql/mysql/api
+└── connection_config
+
+documents              # 知识库文档
+├── doc_id (PK)
+├── agent_id (FK)      # 归属智能体
+└── metadata (JSONB)
+
+document_nodes         # 文档分块 + 向量
+├── node_id (PK)
+├── content, embedding
+└── path[]             # 章节路径
+
+chat_sessions          # 对话会话
+└── chat_messages      # 消息记录
 ```
 
-- 输入问题，例如："帮我找一下最近金额大于100万的软件开发业绩"
-- Agent 会自动拆解任务，调用 `search_knowledge_base` 工具。
+---
 
-## 📂 目录结构
+## 环境变量
+
+| 变量 | 说明 | 示例 |
+|------|------|------|
+| `DATABASE_URL` | PostgreSQL 连接串 | `postgresql://user:pass@localhost/db` |
+| `FASTAPI_PORT` | 服务端口 | `8001` |
+| `MODEL_API_BASE_URL` | LLM API 地址 | `https://api.siliconflow.cn/v1` |
+| `MODEL_API_KEY` | API 密钥 | `sk-xxx` |
+
+---
+
+## 目录结构
 
 ```
 universal-rag/
-├── api/                # FastAPI 路由与应用入口
-├── cli/                # Typer 命令行工具
-├── db/                 # 数据库连接与会话管理
-├── services/           # 核心业务逻辑
-│   ├── agent_service.py    # Agent 循环与状态机
-│   ├── tool_registry.py    # 工具注册中心
-│   ├── tools/              # 具体工具实现 (MatchTool, RAGTool)
-│   └── vector_service.py   # 向量检索服务
-├── sql/                # 数据库 SQL 脚本
-│   ├── schema.sql          # 完整数据库结构
-│   └── migrations/         # 迁移脚本
-├── prompts/            # LLM 提示词模板
-├── schemas/            # Pydantic 数据模型
-└── tests/              # 单元测试
+├── api/              # FastAPI 路由层
+│   ├── main.py
+│   └── routes/
+├── services/         # 业务逻辑层
+│   ├── agent_service.py      # Agent Loop 核心
+│   ├── assistant_service.py  # 智能体 CRUD
+│   ├── datasource_service.py # 动态数据源
+│   └── tools/                # 工具注册
+├── db/               # 数据库连接
+├── sql/              # Schema 和迁移
+├── prompts/          # 提示词模板
+└── cli/              # 命令行工具
 ```
+
+---
+
+## 默认智能体
+
+系统自带一个默认智能体 (ID: `00000000-0000-0000-0000-000000000001`)，不可删除。
+
+---
+
+## 扩展开发
+
+### 添加新工具
+
+```python
+# services/tools/my_tool.py
+from services.tool_registry import BaseTool, ToolRegistry
+
+@ToolRegistry.register
+class MyTool(BaseTool):
+    name: str = "my_tool"
+    description: str = "工具描述"
+    param1: str  # 参数定义
+    
+    def run(self) -> str:
+        # 工具逻辑
+        return "结果"
+```
+
+### 创建专用智能体项目
+
+1. 复制 universal-rag 作为基础
+2. 通过 API 创建专用智能体
+3. 配置专属数据源
+4. 自定义 system_prompt
+
+---
+
+## License
+
+MIT

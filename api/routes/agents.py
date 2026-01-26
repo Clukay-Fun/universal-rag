@@ -3,7 +3,7 @@ Description: Agent management API routes
 Features:
     - Agent CRUD endpoints
     - Datasource management endpoints
-Dependencies: FastAPI, assistant_service
+Dependencies: FastAPI, agent_management_service
 """
 
 from uuid import UUID
@@ -12,7 +12,7 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 from typing import Any
 
-from services.assistant_service import (
+from services.agent_management_service import (
     AgentService,
     AgentCreate,
     AgentUpdate,

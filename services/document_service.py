@@ -392,20 +392,26 @@ def persist_document(
     """
 
     now = datetime.utcnow()
+    metadata: dict[str, object] = {}
+    if party_a_name:
+        metadata["party_a_name"] = party_a_name
+    if party_a_credit_code:
+        metadata["party_a_credit_code"] = party_a_credit_code
+    if party_a_source:
+        metadata["party_a_source"] = party_a_source
+
     row = conn.execute(
         """
         INSERT INTO documents (
             title,
             file_name,
-            party_a_name,
-            party_a_credit_code,
-            party_a_source,
+            metadata,
             created_at
         )
-        VALUES (%s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s)
         RETURNING doc_id
         """,
-        (title, file_name, party_a_name, party_a_credit_code, party_a_source, now),
+        (title, file_name, metadata, now),
     ).fetchone()
 
     if not row:

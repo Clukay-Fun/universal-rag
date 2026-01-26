@@ -52,27 +52,27 @@ class DatasourceConnectionService:
         Returns:
             Datasource config dict or None
         """
-        conn = get_connection()
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT ds_type, connection_config, table_schema, name
-                FROM agent_datasources
-                WHERE datasource_id = %s AND is_active = TRUE
-                """,
-                (str(datasource_id),)
-            )
-            row = cur.fetchone()
-            
-            if not row:
-                return None
-            
-            return {
-                "ds_type": row[0],
-                "connection_config": row[1],
-                "table_schema": row[2],
-                "name": row[3]
-            }
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT ds_type, connection_config, table_schema, name
+                    FROM agent_datasources
+                    WHERE datasource_id = %s AND is_active = TRUE
+                    """,
+                    (str(datasource_id),)
+                )
+                row = cur.fetchone()
+
+                if not row:
+                    return None
+
+                return {
+                    "ds_type": row[0],
+                    "connection_config": row[1],
+                    "table_schema": row[2],
+                    "name": row[3]
+                }
 
     @classmethod
     @contextmanager

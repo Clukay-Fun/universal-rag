@@ -5,7 +5,7 @@ Features:
     - Tool invocation and result handling
     - SSE streaming state push
     - Multi-agent context support
-Dependencies: model_service, tool_registry, sse_utils, assistant_service
+Dependencies: model_service, tool_registry, sse_utils, agent_management_service
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from uuid import UUID
 from services.model_service import chat
 from services.sse_utils import AgentState, sse_status, sse_chunk, sse_error, sse_done
 from services.tool_registry import ToolRegistry
-from services.assistant_service import AgentService
+from services.agent_management_service import AgentService
 # Ensure tools are registered
 import services.tools  # noqa
 

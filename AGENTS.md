@@ -1,8 +1,8 @@
-# AGENTS.md
-# 通用 RAG 知识库协作指南（中文）
+# universal-rag
+# 通用 RAG 智能体平台协作指南
 
 ## 项目定位
-- 目标：**通用 RAG 内核**，支持多助手动态接入各自数据源
+- 目标：**通用 RAG 内核**，支持多智能体 (Agent) 动态接入各自数据源
 - 关键体验：SSE 实时展示 Agent 状态
 - 默认服务地址：http://localhost:8001/
 
@@ -10,11 +10,11 @@
 ```
 Universal RAG Core
 ├── 通用表 (documents, document_nodes, chat_*)
-├── 助手配置 (assistants, assistant_datasources)
+├── 智能体配置 (agents, agent_datasources)
 ├── 通用工具 (search_knowledge_base)
 └── 动态数据源连接机制
     ▼ 外接
-  投标助手 DB / 法律助手 DB / 其他助手 DB
+  投标智能体 DB / 法律智能体 DB / 其他智能体 DB
 ```
 
 ## 模块与功能
@@ -22,7 +22,7 @@ Universal RAG Core
 - 知识库：AI 解析章节层级，生成 Node 树
 - 向量索引：pgvector 存储，BGE-M3 嵌入
 - RAG 问答：引用来源的智能问答
-- 助手管理：多助手配置与数据源隔离
+- 智能体管理：多智能体配置与数据源隔离
 - 数据库存储：PostgreSQL + pgvector 一体化
 
 ## 固定依赖（必须使用）

@@ -243,7 +243,7 @@ async def send_chat_message(session_id: str, request: Request) -> StreamingRespo
                 session_id,
                 payload.content,
                 history,
-                assistant_id=assistant_id,
+                agent_id=assistant_id,
             ):
                 yield sse_string
                 
