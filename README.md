@@ -6,7 +6,7 @@
 
 ```bash
 # 0. clone repo
-git clone https://github.com/<owner>/universal-rag.git
+git clone https://github.com/Clukay-Fun/universal-rag.git
 cd universal-rag
 
 # 1. 安装依赖
